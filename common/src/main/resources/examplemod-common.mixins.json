@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "package": "mc.craig.software.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "GuiMixin",
+    "LocalPlayerMixin",
+    "MonitorScreenMixin",
+    "RenderPlayerMixin"
+  ],
+  "mixins": [
+    "LivingEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
