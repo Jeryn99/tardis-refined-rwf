@@ -13,6 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import whocraft.tardis_refined.client.model.blockentity.shell.ShellModel;
 import whocraft.tardis_refined.client.model.blockentity.shell.ShellModelCollection;
+import whocraft.tardis_refined.common.tardis.themes.ShellTheme;
 
 import static net.minecraft.client.renderer.entity.LivingEntityRenderer.getOverlayCoords;
 import static net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
@@ -40,8 +41,9 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
             poseStack.mulPose(Vector3f.YP.rotation(entity.getYRot()));
         }
 
-        ShellModel shell = ShellModelCollection.getInstance().getShellModel(entity.getShellTheme());
 
+        ShellModel shell = ShellModelCollection.getInstance().getShellModel(entity.getShellTheme());
+        shell.setDoorPosition(entity.isOpen());
         shell.renderToBuffer(poseStack, multiBufferSource.getBuffer(RenderType.entityTranslucent(getTextureLocation(entity))), i, NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
 
         poseStack.pushPose();

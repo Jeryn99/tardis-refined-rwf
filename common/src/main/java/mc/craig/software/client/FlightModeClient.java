@@ -1,5 +1,6 @@
 package mc.craig.software.client;
 
+import mc.craig.software.network.RWFOpenDoor;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -15,6 +16,10 @@ public class FlightModeClient {
         player.getAbilities().setFlyingSpeed(0.16F);
         Minecraft.getInstance().options.setCameraType(CameraType.THIRD_PERSON_BACK);
         Minecraft.getInstance().options.fov().set(90);
+
+        if(Minecraft.getInstance().options.keyAttack.isDown()){
+            new RWFOpenDoor().send();
+        }
 
         if(player.horizontalCollision) {
             if (level != null) {

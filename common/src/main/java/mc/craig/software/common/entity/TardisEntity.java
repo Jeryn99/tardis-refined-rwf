@@ -20,7 +20,9 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import whocraft.tardis_refined.common.blockentity.door.TardisInternalDoor;
 import whocraft.tardis_refined.common.capability.TardisLevelOperator;
 import whocraft.tardis_refined.common.tardis.TardisNavLocation;
 import whocraft.tardis_refined.common.tardis.themes.ShellTheme;
@@ -29,20 +31,17 @@ import whocraft.tardis_refined.common.util.Platform;
 import whocraft.tardis_refined.registry.DimensionTypes;
 import whocraft.tardis_refined.registry.SoundRegistry;
 
+import java.util.List;
+
 public class TardisEntity extends Entity {
 
     public static final EntityDataAccessor<String> SHELL_THEME = SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.STRING);
     public static final EntityDataAccessor<String> DIMENSION = SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.STRING);
+    public static final EntityDataAccessor<Boolean> DOOR = SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.BOOLEAN);
 
     public TardisEntity(EntityType<TardisEntity> entityType, Level level) {
         super(entityType, level);
     }
-
-    @Override
-    public boolean isControlledByLocalInstance() {
-        return level.isClientSide;
-    }
-
     @Override
     public void tick() {
         super.tick();
@@ -52,7 +51,7 @@ public class TardisEntity extends Entity {
         if (isPassenger()) {
             Vec3 motion = getVehicle().getDeltaMovement();
             float tilt = (float) (motion.x * 25);
-            setXRot(tilt);
+            setXRot(-tilt);
 
             if (!getVehicle().isOnGround()) {
                 setYRot(getVehicle().getYRot());
@@ -75,6 +74,17 @@ public class TardisEntity extends Entity {
             }
 
             TardisLevelOperator.get(getTardisLevel()).ifPresent(tardisLevelOperator -> {
+
+                //TP Entities
+                List<Entity> entities = serverLevel.getEntities(null, getBoundingBox());
+                //TODO
+
+
+                // Match Tardis
+                TardisInternalDoor door = tardisLevelOperator.getInternalDoor();
+                if(door != null) {
+                    setDoorOpen(door.isOpen());
+                }
                 setShellTheme(tardisLevelOperator.getExteriorManager().getCurrentTheme());
                 if (serverLevel.dimensionTypeId() != DimensionTypes.TARDIS) {
                     tardisLevelOperator.getExteriorManager().setLastKnownLocation(new TardisNavLocation(blockPosition(), Direction.fromYRot(getYRot()), serverLevel));
@@ -82,6 +92,20 @@ public class TardisEntity extends Entity {
             });
         }
 
+    }
+
+    @Override
+    public boolean canCollideWith(Entity entity) {
+        return super.canCollideWith(entity);
+    }
+
+    public boolean checkEntityCollision(Entity me, Entity you) {
+        if(canCollideWith(you)) {
+            AABB boundingBox1 = me.getBoundingBox();
+            AABB boundingBox2 = you.getBoundingBox();
+            return boundingBox1.intersects(boundingBox2);
+        }
+        return false;
     }
 
     @Override
@@ -115,16 +139,27 @@ public class TardisEntity extends Entity {
     protected void defineSynchedData() {
         entityData.define(DIMENSION, Level.OVERWORLD.location().toString());
         entityData.define(SHELL_THEME, ShellTheme.FACTORY.getSerializedName());
+        entityData.define(DOOR, false);
+    }
+
+    public void setDoorOpen(boolean open){
+        getEntityData().set(DOOR, open);
+    }
+
+    public boolean isOpen(){
+        return getEntityData().get(DOOR);
     }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag compoundTag) {
         setShellTheme(compoundTag.getString("shell_theme"));
+        setDoorOpen(compoundTag.getBoolean("open"));
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag compoundTag) {
         compoundTag.putString("shell_theme", getShellTheme().getSerializedName());
+        compoundTag.putBoolean("open", isOpen());
     }
 
     @Override
