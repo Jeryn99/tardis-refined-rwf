@@ -17,10 +17,6 @@ public class FlightModeClient {
         Minecraft.getInstance().options.setCameraType(CameraType.THIRD_PERSON_BACK);
         Minecraft.getInstance().options.fov().set(90);
 
-        if(Minecraft.getInstance().options.keyAttack.isDown()){
-            new RWFOpenDoor().send();
-        }
-
         if(player.horizontalCollision) {
             if (level != null) {
                 level.addParticle(ParticleTypes.LARGE_SMOKE, player.getX(), player.getY() + 1.0D, player.getZ(), 0.2D, 1.0D, 0.0D);

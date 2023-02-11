@@ -7,5 +7,6 @@ public class RealWorldFlightFabric implements ModInitializer {
     @Override
     public void onInitialize() {
         RealWorldFlight.init();
+        FabricEvents.init();
     }
 }
