@@ -35,7 +35,6 @@ dependencies {
     modImplementation "dev.onyxstudios.cardinal-components-api:cardinal-components-world:${rootProject.cardinal_version}"
 
     modImplementation "ignored:tardis_refined:2.0.0:fabric"
-    implementation 'cz.advel.jbullet:jbullet:20101010-1'
 
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
     shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) { transitive false }

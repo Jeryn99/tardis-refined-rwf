@@ -36,7 +36,7 @@ public class RWFOpenDoor extends MessageC2S {
     public void handle(MessageContext messageContext) {
         ServerPlayer player = messageContext.getPlayer();
         if(player.getFirstPassenger() instanceof TardisEntity tardis){
-            ServerLevel level = tardis.getTardisLevel();
+            ServerLevel level = tardis.getTardisLevel(player.getLevel());
             TardisLevelOperator.get(level).ifPresent(tardisLevelOperator -> {
                 tardisLevelOperator.setDoorClosed(tardisLevelOperator.getInternalDoor().isOpen());
             });

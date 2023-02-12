@@ -1,18 +1,5 @@
 package mc.craig.software.common.entity;
 
-import com.bulletphysics.collision.broadphase.BroadphaseInterface;
-import com.bulletphysics.collision.broadphase.DbvtBroadphase;
-import com.bulletphysics.collision.dispatch.CollisionDispatcher;
-import com.bulletphysics.collision.dispatch.DefaultCollisionConfiguration;
-import com.bulletphysics.collision.shapes.BoxShape;
-import com.bulletphysics.dynamics.DiscreteDynamicsWorld;
-import com.bulletphysics.dynamics.DynamicsWorld;
-import com.bulletphysics.dynamics.RigidBody;
-import com.bulletphysics.dynamics.RigidBodyConstructionInfo;
-import com.bulletphysics.dynamics.constraintsolver.SequentialImpulseConstraintSolver;
-import com.bulletphysics.linearmath.DefaultMotionState;
-import com.bulletphysics.linearmath.Transform;
-import mc.craig.software.client.FlightModeClient;
 import mc.craig.software.util.RWFTeleport;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -27,10 +14,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -43,8 +29,6 @@ import whocraft.tardis_refined.common.util.Platform;
 import whocraft.tardis_refined.registry.DimensionTypes;
 import whocraft.tardis_refined.registry.SoundRegistry;
 
-import javax.vecmath.Quat4f;
-import javax.vecmath.Vector3f;
 import java.util.List;
 
 public class TardisEntity extends Entity {
@@ -52,37 +36,11 @@ public class TardisEntity extends Entity {
     public static final EntityDataAccessor<String> SHELL_THEME = SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.STRING);
     public static final EntityDataAccessor<String> DIMENSION = SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.STRING);
     public static final EntityDataAccessor<Boolean> DOOR = SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.BOOLEAN);
-    private final RigidBody tardisBody;
+
     private int timeCrouching = 0;
 
     public TardisEntity(EntityType<TardisEntity> entityType, Level level) {
         super(entityType, level);
-        // Initialize JBullet
-        BroadphaseInterface broadphase = new DbvtBroadphase();
-        DefaultCollisionConfiguration collisionConfiguration = new DefaultCollisionConfiguration();
-        CollisionDispatcher dispatcher = new CollisionDispatcher(collisionConfiguration);
-        SequentialImpulseConstraintSolver solver = new SequentialImpulseConstraintSolver();
-        DynamicsWorld dynamicsWorld = new DiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
-
-        // Create a box shape for the Tardis
-        Vector3f boxHalfExtents = new Vector3f(0.5f, 1.0f, 0.5f);
-        BoxShape boxShape = new BoxShape(boxHalfExtents);
-
-        // Create a motion state for the Tardis
-        Transform startTransform = new Transform();
-        startTransform.setIdentity();
-        startTransform.origin.set((float) this.getX(), (float) this.getY(), (float) this.getZ());
-        DefaultMotionState motionState = new DefaultMotionState(startTransform);
-
-        // Create a rigid body for the Tardis
-        Vector3f localInertia = new Vector3f(0, 0, 0);
-        boxShape.calculateLocalInertia(1.0f, localInertia);
-        RigidBodyConstructionInfo constructionInfo = new RigidBodyConstructionInfo(1.0f, motionState, boxShape, localInertia);
-        this.tardisBody = new RigidBody(constructionInfo);
-
-        // Add the Tardis to the dynamics world
-        dynamicsWorld.addRigidBody(this.tardisBody);
-
     }
 
     @Override
@@ -91,35 +49,9 @@ public class TardisEntity extends Entity {
 
             Entity controllingPlayer = getVehicle();
 
-           /* Vec3 motion = controllingPlayer.getDeltaMovement();
+            Vec3 motion = controllingPlayer.getDeltaMovement();
             float tilt = (float) (motion.x * 25);
-            setXRot(-tilt);*/
-
-            // Get the current transform of the Tardis's rigid body
-            Transform tardisTransform = new Transform();
-            this.tardisBody.getWorldTransform(tardisTransform);
-
-            Transform tardisTransformRot = this.tardisBody.getMotionState().getWorldTransform(new Transform());
-            this.setRotation(tardisTransformRot.getRotation(new Quat4f()));
-
-            // Set the Tardis's position and rotation based on the rigid body's transform
-            //   controllingPlayer.setPos(tardisTransform.origin.x, tardisTransform.origin.y, tardisTransform.origin.z);
-
-         /*   Vec3 motion = controllingPlayer.getDeltaMovement();
-            if (motion.x < 0 && !this.level.getBlockState(new BlockPos(this.getX() - 0.5, this.getY(), this.getZ())).isCollisionShapeFullBlock(this.level, new BlockPos(this.getX() - 0.5, this.getY(), this.getZ()))) {
-                this.tardisBody.applyCentralImpulse(new Vector3f((float) -motion.x, 0, 0));
-                controllingPlayer.setPos(this.getX() + motion.x, controllingPlayer.getY(), controllingPlayer.getZ());
-            } else if (motion.x > 0 && !this.level.getBlockState(new BlockPos(this.getX() + 0.5, this.getY(), this.getZ())).isCollisionShapeFullBlock(this.level, new BlockPos(this.getX() + 0.5, this.getY(), this.getZ()))) {
-                this.tardisBody.applyCentralImpulse(new Vector3f((float) -motion.x, 0, 0));
-                controllingPlayer.setPos(this.getX() + motion.x, controllingPlayer.getY(), controllingPlayer.getZ());
-            } else if (motion.z < 0 && !this.level.getBlockState(new BlockPos(this.getX(), this.getY(), this.getZ() - 0.5)).isCollisionShapeFullBlock(this.level, new BlockPos(this.getX(), this.getY(), this.getZ() - 0.5))) {
-                this.tardisBody.applyCentralImpulse(new Vector3f(0, 0, (float) -motion.z));
-                controllingPlayer.setPos(controllingPlayer.getX(), controllingPlayer.getY(), this.getZ() + motion.z);
-            } else if (motion.z > 0 && !this.level.getBlockState(new BlockPos(this.getX(), this.getY(), this.getZ() + 0.5)).isCollisionShapeFullBlock(this.level, new BlockPos(this.getX(), this.getY(), this.getZ() + 0.5))) {
-                this.tardisBody.applyCentralImpulse(new Vector3f(0, 0, (float) -motion.z));
-                controllingPlayer.setPos(controllingPlayer.getX(), controllingPlayer.getY(), this.getZ() + motion.z);
-            }
-*/
+            setXRot(-tilt);
 
             if (!controllingPlayer.isOnGround()) {
                 setYRot(controllingPlayer.getYRot());
@@ -130,48 +62,45 @@ public class TardisEntity extends Entity {
                 }
             }
 
-            if(timeCrouching >= 100){
-                finishFlight();
-            }
-
-            if (level.isClientSide) {
-                FlightModeClient.tick();
-            }
-
-
             flightEffects(controllingPlayer);
 
 
             if (level instanceof ServerLevel serverLevel) {
-                if (getTardisLevel().dimensionTypeId() != DimensionTypes.TARDIS) {
+
+                if (timeCrouching >= 100) {
+                    finishFlight(serverLevel);
+                }
+
+                if (getTardisLevel(serverLevel).dimensionTypeId() != DimensionTypes.TARDIS) {
+                    finishFlight(serverLevel);
                     remove(RemovalReason.DISCARDED);
                 }
-                TardisLevelOperator.get(getTardisLevel()).ifPresent(tardisLevelOperator -> {
+                TardisLevelOperator.get(getTardisLevel(serverLevel)).ifPresent(tardisLevelOperator -> {
                     collisionTeleport(controllingPlayer, tardisLevelOperator);
                     syncFromData(serverLevel, tardisLevelOperator);
                 });
             }
-
-
         } else {
-            remove(RemovalReason.DISCARDED);
+            if (level instanceof ServerLevel serverLevel) {
+
+                FlightTracker.FlightData data = FlightTracker.IN_FLIGHT.get(getTardisLevel(serverLevel).dimension());
+                if (data == null) {
+                    discard();
+                    return;
+                }
+                ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(data.player().getUUID());
+                if (player != null) {
+                    startRiding(player, true);
+                }
+                if (tickCount >= 100) {
+                    finishFlight(serverLevel);
+                    remove(RemovalReason.DISCARDED);
+                }
+            }
         }
 
         super.tick();
 
-    }
-
-    public void setRotation(Quat4f tardisTransform) {
-        this.setYRot((float) Math.toDegrees(Mth.atan2(2 * (tardisTransform.y * tardisTransform.z + tardisTransform.w * tardisTransform.x), tardisTransform.w * tardisTransform.w - tardisTransform.x * tardisTransform.x - tardisTransform.y * tardisTransform.y + tardisTransform.z * tardisTransform.z)));
-        float pitch = (float) Math.toDegrees(Math.asin(2 * (tardisTransform.x * tardisTransform.z - tardisTransform.w * tardisTransform.y)) / 2);
-        pitch = Math.max(Math.min(pitch, 90), -90);
-        this.setXRot(pitch);
-        System.out.println(getXRot());
-    }
-
-    @Override
-    public boolean canBeCollidedWith() {
-        return true;
     }
 
     private void flightEffects(Entity controllingPlayer) {
@@ -238,25 +167,6 @@ public class TardisEntity extends Entity {
     }
 
 
-    @Override
-    public boolean canCollideWith(Entity entity) {
-        return super.canCollideWith(entity);
-    }
-
-    public boolean checkEntityCollision(Entity me, Entity you) {
-        if (canCollideWith(you)) {
-            AABB boundingBox1 = me.getBoundingBox();
-            AABB boundingBox2 = you.getBoundingBox();
-            return boundingBox1.intersects(boundingBox2);
-        }
-        return false;
-    }
-
-    @Override
-    public void move(MoverType moverType, Vec3 vec3) {
-        super.move(moverType, vec3);
-    }
-
     public void setDimension(ResourceKey resourceKey) {
         getEntityData().set(DIMENSION, resourceKey.location().toString());
     }
@@ -311,8 +221,8 @@ public class TardisEntity extends Entity {
         return MiscHelper.spawnPacket(this);
     }
 
-    public ServerLevel getTardisLevel() {
-        return Platform.getServer().getLevel(ResourceKey.create(Registry.DIMENSION_REGISTRY, new ResourceLocation(getEntityData().get(DIMENSION))));
+    public ServerLevel getTardisLevel(ServerLevel serverLevel) {
+        return serverLevel.getServer().getLevel(ResourceKey.create(Registry.DIMENSION_REGISTRY, new ResourceLocation(getEntityData().get(DIMENSION))));
     }
 
     public static ServerLevel getLevel(ResourceLocation resourceLocation) {
@@ -323,11 +233,12 @@ public class TardisEntity extends Entity {
         TardisLevelOperator.get(tardisLvl).ifPresent(tardisLevelOperator -> {
             TardisNavLocation lastKnown = tardisLevelOperator.getExteriorManager().getLastKnownLocation();
             tardisLevelOperator.setDoorClosed(true);
+            tardisLevelOperator.getExteriorManager().removeExteriorBlock();
             TardisEntity tardis = new TardisEntity(RWFEntityTypes.TARDIS.get(), tardisLvl);
             tardis.setShellTheme(tardisLevelOperator.getExteriorManager().getCurrentTheme());
             tardis.setDimension(tardisLevelOperator.getLevel().dimension());
             tardis.setPos(lastKnown.position.getX(), lastKnown.position.getY(), lastKnown.position.getZ());
-            FlightTracker.setInFlight(tardis, tardisLvl.dimension());
+            FlightTracker.setInFlight(new FlightTracker.FlightData(tardis, serverPlayer), tardisLvl.dimension());
             serverPlayer.teleportTo(lastKnown.level, lastKnown.position.getX(), lastKnown.position.getY(), lastKnown.position.getZ(), 0, 0);
             FlightTracker.setUpPlayerForFlight(serverPlayer);
             lastKnown.level.addFreshEntity(tardis);
@@ -335,22 +246,25 @@ public class TardisEntity extends Entity {
         });
     }
 
-    public void finishFlight() {
-        ServerLevel tardisLvl = getTardisLevel();
+    @Override
+    public boolean wasKilled(ServerLevel serverLevel, LivingEntity livingEntity) {
+        FlightTracker.loggedOut(FlightTracker.IN_FLIGHT.get(getTardisLevel(serverLevel).dimension()));
+        return super.wasKilled(serverLevel, livingEntity);
+    }
+
+    public void finishFlight(ServerLevel serverLevel) {
+        ServerLevel tardisLvl = getTardisLevel(serverLevel);
         TardisLevelOperator.get(tardisLvl).ifPresent(tardisLevelOperator -> {
 
             if (this.getVehicle() instanceof ServerPlayer serverPlayer) {
+                updateLastKnownPosition(serverLevel, tardisLevelOperator);
+                tardisLevelOperator.getExteriorManager().placeExteriorBlock(tardisLevelOperator, new TardisNavLocation(serverPlayer.blockPosition(), Direction.fromYRot(serverPlayer.getYRot()), serverLevel));
                 FlightTracker.restorePlayer(serverPlayer);
                 teleportToInterior(tardisLevelOperator, serverPlayer);
             }
 
-            if (level instanceof ServerLevel serverLevel) {
-                updateLastKnownPosition(serverLevel, tardisLevelOperator);
-                FlightTracker.stopFlying(tardisLevelOperator.getLevel().dimension());
-            }
-
+            FlightTracker.stopFlying(tardisLevelOperator.getLevel().dimension());
             discard();
-
         });
     }
 }

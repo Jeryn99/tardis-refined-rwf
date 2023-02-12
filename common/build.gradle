@@ -9,8 +9,6 @@ loom {
 dependencies {
     modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
     modImplementation "ignored:tardis_refined:2.0.0:fabric"
-    implementation 'cz.advel.jbullet:jbullet:20101010-1'
-
 }
 
 publishing {
