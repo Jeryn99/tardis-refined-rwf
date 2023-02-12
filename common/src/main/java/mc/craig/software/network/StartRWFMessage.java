@@ -1,6 +1,7 @@
 package mc.craig.software.network;
 
 import mc.craig.software.RWFNetwork;
+import mc.craig.software.common.entity.FlightTracker;
 import mc.craig.software.common.entity.TardisEntity;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
@@ -33,7 +34,9 @@ public class StartRWFMessage extends MessageC2S {
     public void handle(MessageContext messageContext) {
         ServerPlayer player = messageContext.getPlayer();
         if(player.level instanceof ServerLevel serverLevel){
-            TardisEntity.createTardis(serverLevel, player);
+            if(!FlightTracker.isFlying(serverLevel.dimension())) {
+                TardisEntity.createTardis(serverLevel, player);
+            }
         }
     }
 }

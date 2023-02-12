@@ -19,7 +19,11 @@ public class FlightTracker {
         IN_FLIGHT.remove(levelResourceKey);
     }
 
-    public static void setUpPlayerForFlight(ServerPlayer serverPlayer){
+    public static boolean isFlying(ResourceKey<Level> levelResourceKey) {
+        return IN_FLIGHT.containsKey(levelResourceKey);
+    }
+
+    public static void setUpPlayerForFlight(ServerPlayer serverPlayer) {
         Abilities abilities = serverPlayer.getAbilities();
         abilities.mayfly = true;
         abilities.flying = true;

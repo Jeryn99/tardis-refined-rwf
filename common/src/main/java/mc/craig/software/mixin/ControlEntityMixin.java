@@ -1,5 +1,6 @@
 package mc.craig.software.mixin;
 
+import mc.craig.software.common.entity.FlightTracker;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -20,9 +21,12 @@ public class ControlEntityMixin {
     @Inject(at = @At("HEAD"), cancellable = true, method = "hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z")
     private void stopInteractionOnHurt(DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> cir) {
         ControlEntity control = (ControlEntity) (Object) this;
-        if (control.controlSpecification() != null && control.controlSpecification().control() != ConsoleControl.MONITOR && control.controlSpecification().control() != ConsoleControl.DOOR_TOGGLE) {
-            PlayerUtil.sendMessage((LivingEntity) damageSource.getDirectEntity(), "TARDIS in Flight", true);
-            cir.setReturnValue(false);
+
+        if (FlightTracker.isFlying(control.level.dimension())) {
+            if (control.controlSpecification() != null && control.controlSpecification().control() != ConsoleControl.MONITOR && control.controlSpecification().control() != ConsoleControl.DOOR_TOGGLE) {
+                PlayerUtil.sendMessage((LivingEntity) damageSource.getDirectEntity(), "TARDIS in Flight", true);
+                cir.setReturnValue(false);
+            }
         }
 
     }
@@ -31,9 +35,12 @@ public class ControlEntityMixin {
     @Inject(at = @At("HEAD"), cancellable = true, method = "interactAt(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;")
     private void stopInteractionOnInteract(Player player, Vec3 vec3, InteractionHand interactionHand, CallbackInfoReturnable<InteractionResult> cir) {
         ControlEntity control = (ControlEntity) (Object) this;
-        if (control.controlSpecification() != null && control.controlSpecification().control() != ConsoleControl.MONITOR && control.controlSpecification().control() != ConsoleControl.DOOR_TOGGLE) {
-            PlayerUtil.sendMessage(player, "TARDIS in Flight", true);
-            cir.setReturnValue(InteractionResult.CONSUME);
+        if (FlightTracker.isFlying(control.level.dimension())) {
+
+            if (control.controlSpecification() != null && control.controlSpecification().control() != ConsoleControl.MONITOR && control.controlSpecification().control() != ConsoleControl.DOOR_TOGGLE) {
+                PlayerUtil.sendMessage(player, "TARDIS in Flight", true);
+                cir.setReturnValue(InteractionResult.CONSUME);
+            }
         }
     }
 

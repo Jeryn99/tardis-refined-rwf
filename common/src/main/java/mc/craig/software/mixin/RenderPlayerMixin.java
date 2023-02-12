@@ -1,7 +1,6 @@
 package mc.craig.software.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import mc.craig.software.client.overlay.RenderGallifreyanOverlay;
 import mc.craig.software.common.entity.TardisEntity;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -15,9 +14,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class RenderPlayerMixin {
 
     @Inject(at = @At("HEAD"), cancellable = true, method = "render(Lnet/minecraft/client/player/AbstractClientPlayer;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V")
-    private void stopXpBar(AbstractClientPlayer abstractClientPlayer, float f, float g, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, CallbackInfo ci) {
-       if(abstractClientPlayer.getFirstPassenger() instanceof TardisEntity) {
-           ci.cancel();
-       }
+    private void stopPlayerRendering(AbstractClientPlayer abstractClientPlayer, float f, float g, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, CallbackInfo ci) {
+        if (abstractClientPlayer.getFirstPassenger() instanceof TardisEntity) {
+            ci.cancel();
+        }
     }
 }
