@@ -14,8 +14,8 @@ loom {
         convertAccessWideners = true
         extraAccessWideners.add loom.accessWidenerPath.get().asFile.name
 
-        mixinConfig "examplemod-common.mixins.json"
-        mixinConfig "examplemod.mixins.json"
+        mixinConfig "tardis_refined_rwf-common.mixins.json"
+        mixinConfig "tardis_refined_rwf.mixins.json"
     }
 }
 

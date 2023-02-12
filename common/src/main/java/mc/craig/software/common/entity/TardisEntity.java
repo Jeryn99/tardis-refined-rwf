@@ -3,7 +3,6 @@ package mc.craig.software.common.entity;
 import mc.craig.software.client.FlightModeClient;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -13,12 +12,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
-import net.minecraft.world.entity.Pose;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -45,8 +41,6 @@ public class TardisEntity extends Entity {
     @Override
     public void tick() {
         super.tick();
-
-        this.move(MoverType.SELF, this.getDeltaMovement());
 
         if (isPassenger()) {
             Vec3 motion = getVehicle().getDeltaMovement();
@@ -87,12 +81,16 @@ public class TardisEntity extends Entity {
                 }
                 setShellTheme(tardisLevelOperator.getExteriorManager().getCurrentTheme());
                 if (serverLevel.dimensionTypeId() != DimensionTypes.TARDIS) {
-                    tardisLevelOperator.getExteriorManager().setLastKnownLocation(new TardisNavLocation(blockPosition(), Direction.fromYRot(getYRot()), serverLevel));
+                    TardisNavLocation navLocation = new TardisNavLocation(blockPosition(), Direction.fromYRot(getYRot()), serverLevel);
+                    if (navLocation != null) {
+                        tardisLevelOperator.getExteriorManager().setLastKnownLocation(navLocation);
+                    }
                 }
             });
         }
 
     }
+
 
     @Override
     public boolean canCollideWith(Entity entity) {

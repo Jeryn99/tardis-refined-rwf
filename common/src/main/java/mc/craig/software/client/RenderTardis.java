@@ -13,9 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import whocraft.tardis_refined.client.model.blockentity.shell.ShellModel;
 import whocraft.tardis_refined.client.model.blockentity.shell.ShellModelCollection;
-import whocraft.tardis_refined.common.tardis.themes.ShellTheme;
 
-import static net.minecraft.client.renderer.entity.LivingEntityRenderer.getOverlayCoords;
 import static net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
 
 public class RenderTardis extends EntityRenderer<TardisEntity> {
@@ -34,7 +32,7 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         poseStack.mulPose(Vector3f.XP.rotationDegrees(entity.getXRot()));
 
         if (!Minecraft.getInstance().player.isOnGround()) {
-            poseStack.mulPose(Vector3f.YP.rotation(entity.tickCount / 10F));
+            poseStack.mulPose(Vector3f.YP.rotation(entity.tickCount / 15F));
             float floating = Mth.cos(entity.tickCount * 0.1F) * -0.09F;
             poseStack.translate(0, -floating, 0);
         } else {
