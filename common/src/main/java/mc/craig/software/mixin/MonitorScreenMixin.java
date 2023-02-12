@@ -19,7 +19,7 @@ public class MonitorScreenMixin {
 
     @Inject(at = @At("RETURN"), cancellable = true, method = "init()V")
     protected void init(CallbackInfo ci) {
-        list.children().add(new GenericMonitorSelectionList.Entry(Component.translatable("flight mung"), (entry) -> {
+        list.children().add(new GenericMonitorSelectionList.Entry(Component.translatable("EXTERIOR FLIGHT"), (entry) -> {
             new StartRWFMessage().send();
         }));
     }

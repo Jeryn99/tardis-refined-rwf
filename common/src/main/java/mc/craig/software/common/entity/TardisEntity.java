@@ -1,8 +1,11 @@
 package mc.craig.software.common.entity;
 
 import mc.craig.software.client.FlightModeClient;
+import mc.craig.software.util.RWFTeleport;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -34,61 +37,128 @@ public class TardisEntity extends Entity {
     public static final EntityDataAccessor<String> SHELL_THEME = SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.STRING);
     public static final EntityDataAccessor<String> DIMENSION = SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.STRING);
     public static final EntityDataAccessor<Boolean> DOOR = SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.BOOLEAN);
+    private int timeCrouching = 0;
 
     public TardisEntity(EntityType<TardisEntity> entityType, Level level) {
         super(entityType, level);
     }
+
     @Override
     public void tick() {
-        super.tick();
-
         if (isPassenger()) {
-            Vec3 motion = getVehicle().getDeltaMovement();
+
+            Entity controllingPlayer = getVehicle();
+
+            Vec3 motion = controllingPlayer.getDeltaMovement();
             float tilt = (float) (motion.x * 25);
             setXRot(-tilt);
 
-            if (!getVehicle().isOnGround()) {
-                setYRot(getVehicle().getYRot());
+            if (!controllingPlayer.isOnGround()) {
+                setYRot(controllingPlayer.getYRot());
+                timeCrouching = 0;
+            } else {
+                if (controllingPlayer.isCrouching()) {
+                    timeCrouching++;
+                }
+            }
+
+            if(timeCrouching >= 100){
+                finishFlight();
             }
 
             if (level.isClientSide) {
                 FlightModeClient.tick();
             }
 
-            if (getVehicle().tickCount % 40 == 0) {
-                playSound(SoundRegistry.TARDIS_SINGLE_FLY.get(), 0.2F, 1F);
+
+            flightEffects(controllingPlayer);
+
+
+            if (level instanceof ServerLevel serverLevel) {
+                if (getTardisLevel().dimensionTypeId() != DimensionTypes.TARDIS) {
+                    remove(RemovalReason.DISCARDED);
+                }
+                TardisLevelOperator.get(getTardisLevel()).ifPresent(tardisLevelOperator -> {
+                    collisionTeleport(controllingPlayer, tardisLevelOperator);
+                    syncFromData(serverLevel, tardisLevelOperator);
+                });
+            }
+
+
+        } else {
+            remove(RemovalReason.DISCARDED);
+        }
+
+        super.tick();
+
+    }
+
+    @Override
+    public boolean canBeCollidedWith() {
+        return true;
+    }
+
+    private void flightEffects(Entity controllingPlayer) {
+        if (controllingPlayer.horizontalCollision) {
+            if (level != null) {
+                level.addParticle(ParticleTypes.LARGE_SMOKE, controllingPlayer.getX(), controllingPlayer.getY() + 1.0D, controllingPlayer.getZ(), 0.2D, 1.0D, 0.0D);
+                level.addParticle(ParticleTypes.LARGE_SMOKE, controllingPlayer.getX(), controllingPlayer.getY() - 1.0D, controllingPlayer.getZ(), 0.0D, 0.5D, 0.0D);
+
+                level.addParticle(ParticleTypes.SMOKE, controllingPlayer.getX(), controllingPlayer.getY() + 1.0D, controllingPlayer.getZ(), 0.0D, 0.2D, 0.0D);
+                level.addParticle(ParticleTypes.SMOKE, controllingPlayer.getX(), controllingPlayer.getY() - 1.0D, controllingPlayer.getZ(), 0.0D, 0.2D, 0.0D);
+
+                level.addParticle(ParticleTypes.LAVA, controllingPlayer.getX(), controllingPlayer.getY() + 1.0D, controllingPlayer.getZ(), 0.0D, 0.0D, 0.0D);
+                level.addParticle(ParticleTypes.LAVA, controllingPlayer.getX(), controllingPlayer.getY() - 1.0D, controllingPlayer.getZ(), 0.0D, 0.0D, 0.0D);
             }
         }
 
-
-        if (level instanceof ServerLevel serverLevel) {
-
-            if (getTardisLevel().dimensionTypeId() != DimensionTypes.TARDIS) {
-                remove(RemovalReason.DISCARDED);
-            }
-
-            TardisLevelOperator.get(getTardisLevel()).ifPresent(tardisLevelOperator -> {
-
-                //TP Entities
-                List<Entity> entities = serverLevel.getEntities(null, getBoundingBox());
-                //TODO
-
-
-                // Match Tardis
-                TardisInternalDoor door = tardisLevelOperator.getInternalDoor();
-                if(door != null) {
-                    setDoorOpen(door.isOpen());
-                }
-                setShellTheme(tardisLevelOperator.getExteriorManager().getCurrentTheme());
-                if (serverLevel.dimensionTypeId() != DimensionTypes.TARDIS) {
-                    TardisNavLocation navLocation = new TardisNavLocation(blockPosition(), Direction.fromYRot(getYRot()), serverLevel);
-                    if (navLocation != null) {
-                        tardisLevelOperator.getExteriorManager().setLastKnownLocation(navLocation);
-                    }
-                }
-            });
+        if (controllingPlayer.tickCount % 40 == 0) {
+            playSound(SoundRegistry.TARDIS_SINGLE_FLY.get(), 0.2F, 1F);
         }
+    }
 
+    private void syncFromData(ServerLevel serverLevel, TardisLevelOperator tardisLevelOperator) {
+        // Match Tardis
+        TardisInternalDoor door = tardisLevelOperator.getInternalDoor();
+        if (door != null) {
+            setDoorOpen(door.isOpen());
+        }
+        setShellTheme(tardisLevelOperator.getExteriorManager().getCurrentTheme());
+        updateLastKnownPosition(serverLevel, tardisLevelOperator);
+    }
+
+    private void updateLastKnownPosition(ServerLevel serverLevel, TardisLevelOperator tardisLevelOperator) {
+        if (serverLevel.dimensionTypeId() != DimensionTypes.TARDIS) {
+            TardisNavLocation navLocation = new TardisNavLocation(blockPosition(), Direction.fromYRot(getYRot()), serverLevel);
+            if (navLocation != null) {
+                tardisLevelOperator.getExteriorManager().setLastKnownLocation(navLocation);
+            }
+        }
+    }
+
+    private void collisionTeleport(Entity controllingPlayer, TardisLevelOperator tardisLevelOperator) {
+        if (isOpen()) {
+            //TP Entities
+            AABB aabb = controllingPlayer.getBoundingBox();
+
+            List<Entity> entities = controllingPlayer.level.getEntitiesOfClass(Entity.class, aabb.inflate(5));
+
+            for (Entity entity : entities) {
+                if (entity == this || entity.is(controllingPlayer)) {
+                    continue;
+                }
+                teleportToInterior(tardisLevelOperator, entity);
+            }
+        }
+    }
+
+    private static void teleportToInterior(TardisLevelOperator tardisLevelOperator, Entity entity) {
+        Level tpLevel = tardisLevelOperator.getLevel();
+        if (tpLevel instanceof ServerLevel finalTpLevel) {
+            BlockPos pos = tardisLevelOperator.getInternalDoor().getDoorPosition();
+            pos = pos.relative(tardisLevelOperator.getInternalDoor().getEntryRotation(), 1);
+            RWFTeleport.performTeleport(entity, finalTpLevel, pos.getX(), pos.getY(), pos.getZ(), entity.getYRot(), entity.getXRot());
+        }
     }
 
 
@@ -98,7 +168,7 @@ public class TardisEntity extends Entity {
     }
 
     public boolean checkEntityCollision(Entity me, Entity you) {
-        if(canCollideWith(you)) {
+        if (canCollideWith(you)) {
             AABB boundingBox1 = me.getBoundingBox();
             AABB boundingBox2 = you.getBoundingBox();
             return boundingBox1.intersects(boundingBox2);
@@ -140,11 +210,11 @@ public class TardisEntity extends Entity {
         entityData.define(DOOR, false);
     }
 
-    public void setDoorOpen(boolean open){
+    public void setDoorOpen(boolean open) {
         getEntityData().set(DOOR, open);
     }
 
-    public boolean isOpen(){
+    public boolean isOpen() {
         return getEntityData().get(DOOR);
     }
 
@@ -176,13 +246,35 @@ public class TardisEntity extends Entity {
     public static void createTardis(ServerLevel tardisLvl, ServerPlayer serverPlayer) {
         TardisLevelOperator.get(tardisLvl).ifPresent(tardisLevelOperator -> {
             TardisNavLocation lastKnown = tardisLevelOperator.getExteriorManager().getLastKnownLocation();
+            tardisLevelOperator.setDoorClosed(true);
             TardisEntity tardis = new TardisEntity(RWFEntityTypes.TARDIS.get(), tardisLvl);
             tardis.setShellTheme(tardisLevelOperator.getExteriorManager().getCurrentTheme());
             tardis.setDimension(tardisLevelOperator.getLevel().dimension());
             tardis.setPos(lastKnown.position.getX(), lastKnown.position.getY(), lastKnown.position.getZ());
+            FlightTracker.setInFlight(tardis, tardisLvl.dimension());
             serverPlayer.teleportTo(lastKnown.level, lastKnown.position.getX(), lastKnown.position.getY(), lastKnown.position.getZ(), 0, 0);
+            FlightTracker.setUpPlayerForFlight(serverPlayer);
             lastKnown.level.addFreshEntity(tardis);
             tardis.startRiding(serverPlayer, true);
+        });
+    }
+
+    public void finishFlight() {
+        ServerLevel tardisLvl = getTardisLevel();
+        TardisLevelOperator.get(tardisLvl).ifPresent(tardisLevelOperator -> {
+
+            if (this.getVehicle() instanceof ServerPlayer serverPlayer) {
+                FlightTracker.restorePlayer(serverPlayer);
+                teleportToInterior(tardisLevelOperator, serverPlayer);
+            }
+
+            if (level instanceof ServerLevel serverLevel) {
+                updateLastKnownPosition(serverLevel, tardisLevelOperator);
+                FlightTracker.stopFlying(tardisLevelOperator.getLevel().dimension());
+            }
+
+            discard();
+
         });
     }
 }

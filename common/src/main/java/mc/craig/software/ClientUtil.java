@@ -15,7 +15,6 @@ public class ClientUtil {
             input.left = false;
             input.right = false;
             input.leftImpulse = 0;
-            input.shiftKeyDown = false;
         }
     }
 }

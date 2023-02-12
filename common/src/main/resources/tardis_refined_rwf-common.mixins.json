@@ -9,6 +9,7 @@
     "RenderPlayerMixin"
   ],
   "mixins": [
+    "ControlEntityMixin",
     "LivingEntityMixin"
   ],
   "injectors": {

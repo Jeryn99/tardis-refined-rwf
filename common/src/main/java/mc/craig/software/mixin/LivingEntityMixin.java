@@ -1,5 +1,6 @@
 package mc.craig.software.mixin;
 
+import mc.craig.software.common.entity.TardisEntity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -13,10 +14,12 @@ public class LivingEntityMixin {
     @Inject(at = @At("HEAD"), cancellable = true, method = "jumpFromGround()V")
     private void jump(CallbackInfo ci) {
         LivingEntity livingEntity = (LivingEntity) (Object) this;
-        double jumpPower = ((double)livingEntity.getJumpPower() + livingEntity.getJumpBoostPower()) * 3;
-        Vec3 vec3 = livingEntity.getDeltaMovement();
-        livingEntity.setDeltaMovement(vec3.x, jumpPower, vec3.z);
-        ci.cancel();
+        if(livingEntity.hasExactlyOnePlayerPassenger() && livingEntity.getFirstPassenger() instanceof TardisEntity tardis) {
+            double jumpPower = ((double) livingEntity.getJumpPower() + livingEntity.getJumpBoostPower()) * 2;
+            Vec3 vec3 = livingEntity.getDeltaMovement();
+            livingEntity.setDeltaMovement(vec3.x, jumpPower, vec3.z);
+            ci.cancel();
+        }
     }
 
 }

@@ -14,7 +14,6 @@ public class GuiMixin {
     @Inject(at = @At("HEAD"), cancellable = true, method = "renderHotbar(FLcom/mojang/blaze3d/vertex/PoseStack;)V")
     private void stopXpBar(float f, PoseStack poseStack, CallbackInfo ci) {
         RenderGallifreyanOverlay.renderAll(poseStack);
-        ci.cancel();
     }
 
 }

@@ -32,7 +32,7 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         poseStack.mulPose(Vector3f.XP.rotationDegrees(entity.getXRot()));
 
         if (!Minecraft.getInstance().player.isOnGround()) {
-            poseStack.mulPose(Vector3f.YP.rotation(entity.tickCount / 15F));
+            poseStack.mulPose(Vector3f.YP.rotation(entity.tickCount / 10F));
             float floating = Mth.cos(entity.tickCount * 0.1F) * -0.09F;
             poseStack.translate(0, -floating, 0);
         } else {
