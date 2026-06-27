@@ -23,6 +23,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import whocraft.tardis_refined.client.TardisClientData;
 
 import javax.vecmath.Quat4f;
 import javax.vecmath.Vector3f;
@@ -95,6 +96,13 @@ public class TardisPhysics {
         }
 
         ensurePhysicsReady();
+
+        TardisClientData tardisClientData = TardisClientData.getInstance(tardis.getTardisDimension());
+
+        if(tardisClientData.getFuel() == 0){
+            clientSideFreeFall = true;
+            new SetFreefallMessage(true).send();
+        }
 
         if (clientSideFreeFall) {
             tickFreefall(mc.player, tardis);

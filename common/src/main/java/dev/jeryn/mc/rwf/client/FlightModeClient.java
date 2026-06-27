@@ -15,6 +15,9 @@ public class FlightModeClient {
     public static FlyingSound TARDIS_SINGLE_FLYING =
             new FlyingSound(TRSoundRegistry.TARDIS_SINGLE_FLY.get(), SoundSource.AMBIENT);
 
+    public static FlyingSound LOW_FUEL_NOISE =
+            new FlyingSound(TRSoundRegistry.ALARM.get(), SoundSource.AMBIENT);
+
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
@@ -36,8 +39,17 @@ public class FlightModeClient {
                 );
             }
 
+            if (!soundManager.isActive(LOW_FUEL_NOISE)) {
+                soundManager.play(
+                        LOW_FUEL_NOISE
+                                .setPlayer(player)
+                                .setLevel(mc.level)
+                );
+            }
+
         } else {
             soundManager.stop(TARDIS_SINGLE_FLYING);
+            soundManager.stop(LOW_FUEL_NOISE);
         }
     }
 }

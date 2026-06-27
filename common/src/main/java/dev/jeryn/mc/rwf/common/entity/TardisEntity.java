@@ -28,16 +28,29 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import whocraft.tardis_refined.common.blockentity.door.TardisInternalDoor;
 import whocraft.tardis_refined.common.capability.tardis.TardisLevelOperator;
+import whocraft.tardis_refined.common.capability.tardis.upgrades.Upgrade;
 import whocraft.tardis_refined.common.tardis.TardisNavLocation;
 import whocraft.tardis_refined.common.tardis.themes.ShellTheme;
 import whocraft.tardis_refined.common.util.MiscHelper;
 import whocraft.tardis_refined.common.util.Platform;
 import whocraft.tardis_refined.patterns.ShellPattern;
+import whocraft.tardis_refined.registry.RegistrySupplier;
 import whocraft.tardis_refined.registry.TRDimensionTypes;
 
 import java.util.List;
+import java.util.Map;
+
+import static dev.jeryn.mc.rwf.common.upgrade.RWFUpgrades.*;
 
 public class TardisEntity extends Entity {
+
+    public static final Map<RegistrySupplier<Upgrade>, Float> FUEL_REDUCTION = Map.of(
+            FLIGHT_EFFICIENCY_1, 0.05f,
+            FLIGHT_EFFICIENCY_2, 0.10f,
+            FLIGHT_EFFICIENCY_3, 0.20f,
+            FLIGHT_EFFICIENCY_4, 0.35f,
+            FLIGHT_EFFICIENCY_5, 0.50f
+    );
 
     public static final EntityDataAccessor<String> SHELL_THEME =
             SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.STRING);
@@ -49,6 +62,7 @@ public class TardisEntity extends Entity {
             SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.BOOLEAN);
 
     public float[] physicsMatrix = null;
+    private Vec3 last = new Vec3(0,0,0);
 
 
     public TardisEntity(EntityType<TardisEntity> entityType, Level level) {
@@ -188,6 +202,7 @@ public class TardisEntity extends Entity {
         if (!(level() instanceof ServerLevel serverLevel)) return;
 
 
+
         if (isPassenger()) {
 
             Entity controllingPlayer = getVehicle();
@@ -200,6 +215,7 @@ public class TardisEntity extends Entity {
 
             flightEffects(controllingPlayer);
             groundEffects(controllingPlayer);
+
 
             // blockImpact((ServerLevel) controllingPlayer.level(), controllingPlayer);
 
@@ -219,6 +235,37 @@ public class TardisEntity extends Entity {
                 op.getPilotingManager().setCurrentLocation(new TardisNavLocation(this.blockPosition(), Direction.NORTH, this.level().dimension()));
                 collisionTeleport(controllingPlayer, op);
                 syncFromData(serverLevel, op);
+
+                float reduction = 0f;
+
+                if (op.getUpgradeHandler().isUpgradeUnlocked(FLIGHT_EFFICIENCY_5.get())) {
+                    reduction = FUEL_REDUCTION.get(FLIGHT_EFFICIENCY_5);
+                } else if (op.getUpgradeHandler().isUpgradeUnlocked(FLIGHT_EFFICIENCY_4.get())) {
+                    reduction = FUEL_REDUCTION.get(FLIGHT_EFFICIENCY_4);
+                } else if (op.getUpgradeHandler().isUpgradeUnlocked(FLIGHT_EFFICIENCY_3.get())) {
+                    reduction = FUEL_REDUCTION.get(FLIGHT_EFFICIENCY_3);
+                } else if (op.getUpgradeHandler().isUpgradeUnlocked(FLIGHT_EFFICIENCY_2.get())) {
+                    reduction = FUEL_REDUCTION.get(FLIGHT_EFFICIENCY_2);
+                } else if (op.getUpgradeHandler().isUpgradeUnlocked(FLIGHT_EFFICIENCY_1.get())) {
+                    reduction = FUEL_REDUCTION.get(FLIGHT_EFFICIENCY_1);
+                }
+
+                float fuelCost = (1f - reduction);
+
+                Vec3 current = controllingPlayer.position();
+
+
+                boolean isMoving =
+                        Math.abs(current.x - last.x) > 0.01 ||
+                                Math.abs(current.y - last.y) > 0.01 ||
+                                Math.abs(current.z - last.z) > 0.01;
+
+                last = current;
+
+
+                if (isMoving || controllingPlayer.level().getBlockState(blockPosition().below()).isAir() && controllingPlayer.fallDistance <= 0) {
+                    op.getPilotingManager().removeFuel(fuelCost);
+                }
             });
 
         } else {
