@@ -1,0 +1,150 @@
+plugins {
+    id "com.github.johnrengelman.shadow" version "7.1.2"
+}
+
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+loom {
+    accessWidenerPath = project(":common").loom.accessWidenerPath
+}
+
+configurations {
+    common
+    shadowCommon
+    minieBundle
+
+    compileClasspath.extendsFrom common, minieBundle
+    runtimeClasspath.extendsFrom common, minieBundle
+    developmentFabric.extendsFrom common, minieBundle
+}
+
+repositories {
+    mavenCentral()
+
+    maven {
+        url "https://dl.bintray.com/jbullet/jbullet"
+    }
+
+    maven {
+        name = "Terraformers"
+        url = "https://maven.terraformersmc.com/"
+    }
+
+    maven {
+        name = "Fuzs Mod Resources"
+        url = "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/"
+    }
+
+    maven {
+        name = "Ladysnake Mods"
+        url = "https://maven.ladysnake.org/releases"
+    }
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    modApi "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+
+    modApi "fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${rootProject.forge_config_api_port_version}"
+
+    modImplementation "com.terraformersmc:modmenu:${rootProject.mod_menu_version}"
+
+    modImplementation "dev.onyxstudios.cardinal-components-api:cardinal-components-base:${rootProject.cardinal_version}"
+    modImplementation "dev.onyxstudios.cardinal-components-api:cardinal-components-world:${rootProject.cardinal_version}"
+    modImplementation "dev.onyxstudios.cardinal-components-api:cardinal-components-entity:${rootProject.cardinal_version}"
+
+    modImplementation "ignored:tardis_refined:${rootProject.tardis_refined_version}:fabric"
+
+    // Physics
+    minieBundle "com.github.stephengold:jbullet:1.0.3"
+    minieBundle "javax.vecmath:vecmath:1.5.2"
+
+    common(project(path: ":common", configuration: "namedElements")) {
+        transitive false
+    }
+
+    shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) {
+        transitive false
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand version: project.version
+    }
+}
+
+def generatedResources = project(":forge").file("src/generated/resources")
+
+sourceSets {
+    main {
+        resources.srcDir generatedResources
+    }
+}
+
+shadowJar {
+    configurations = [
+            project.configurations.shadowCommon,
+            project.configurations.minieBundle
+    ]
+
+    archiveClassifier.set("dev-shadow")
+
+    relocate "com.bulletphysics", "mc.craig.software.shadow.bullet"
+    relocate "javax.vecmath", "mc.craig.software.shadow.vecmath"
+
+    mergeServiceFiles()
+
+    exclude "module-info.class"
+    exclude "META-INF/versions/**/module-info.class"
+
+    exclude "META-INF/*.RSA"
+    exclude "META-INF/*.SF"
+    exclude "META-INF/*.DSA"
+
+    exclude "META-INF/maven/**"
+
+    // Keep fabric.mod.json!
+    exclude "architectury.common.json"
+}
+
+remapJar {
+    dependsOn shadowJar
+
+    input.set(shadowJar.archiveFile)
+    archiveClassifier.set("fabric")
+}
+
+jar {
+    archiveClassifier.set("dev")
+}
+
+sourcesJar {
+    def commonSources = project(":common").sourcesJar
+
+    dependsOn commonSources
+
+    from(commonSources.archiveFile.map {
+        zipTree(it)
+    })
+}
+
+components.java {
+    withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
+        skip()
+    }
+}
+
+publishing {
+    publications {
+        mavenFabric(MavenPublication) {
+            artifactId = rootProject.archives_base_name + "-" + project.name
+            from components.java
+        }
+    }
+}

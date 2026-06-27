@@ -1,0 +1,151 @@
+plugins {
+    id "com.github.johnrengelman.shadow" version "8.1.1"
+}
+
+architectury {
+    platformSetupLoomIde()
+    forge()
+}
+
+loom {
+    accessWidenerPath = project(":common").loom.accessWidenerPath
+
+    forge {
+        convertAccessWideners = true
+        extraAccessWideners.add loom.accessWidenerPath.get().asFile.name
+
+        mixinConfig "tardis_refined_rwf-common.mixins.json"
+        mixinConfig "tardis_refined_rwf.mixins.json"
+    }
+
+    runs {
+        data {
+            data()
+
+            programArgs "--all",
+                    "--mod", "tardis_refined_rwf",
+                    "--output", file("src/generated/resources").absolutePath,
+                    "--existing", file("src/main/resources").absolutePath
+        }
+    }
+}
+
+
+
+configurations {
+    common
+    shadowCommon
+    minieBundle
+
+    compileClasspath.extendsFrom common, minieBundle
+    runtimeClasspath.extendsFrom common, minieBundle
+    developmentForge.extendsFrom common, minieBundle
+
+    minieBundle.exclude group: "org.slf4j"
+    minieBundle.exclude group: "com.simsilica"
+    shadowCommon.exclude group: "org.slf4j"
+    shadowCommon.exclude group: "com.simsilica"
+}
+
+repositories {
+    mavenCentral()
+    maven { url = "https://jitpack.io" }
+}
+
+dependencies {
+    forge "net.minecraftforge:forge:${rootProject.forge_version}"
+
+    modImplementation "ignored:tardis_refined:${rootProject.tardis_refined_version}:forge"
+
+  //  minieBundle "com.github.stephengold:Minie:9.0.3"
+   // minieBundle "com.github.stephengold:Libbulletjme:21.2.1"
+
+    minieBundle 'com.github.stephengold:jbullet:1.0.3'
+
+    // javax.vecmath (required by JBullet — not bundled with JDK 9+)
+    // Included in jbullet-jme; if using the original jbullet jar add:
+    minieBundle 'javax.vecmath:vecmath:1.5.2'
+
+    common(project(path: ":common", configuration: "namedElements")) {
+        transitive false
+    }
+    shadowCommon(project(path: ":common", configuration: "transformProductionForge")) {
+        transitive false
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("META-INF/mods.toml") {
+        expand "version": project.version
+    }
+}
+
+sourceSets.main.resources {
+    srcDir "src/generated/resources"
+}
+
+// =====================================================
+// SHADOW
+// =====================================================
+shadowJar {
+    configurations = [
+            project.configurations.shadowCommon,
+            project.configurations.minieBundle
+    ]
+
+    relocate "com.jme3", "mc.craig.software.shadow.jme3"
+    relocate "com.simsilica", "mc.craig.software.shadow.simsilica"
+    relocate "io.github.electrostat_lab.snaploader", "mc.craig.software.shadow.snaploader"
+
+    mergeServiceFiles()
+
+    // Nuclear — strip ALL module descriptors from every jar
+    exclude "module-info.class"
+    exclude "META-INF/versions/*/module-info.class"
+    exclude "META-INF/MANIFEST.MF"  // stops Automatic-Module-Name headers sneaking through
+
+    // SLF4J
+    exclude "org/slf4j/**"
+    exclude "META-INF/maven/org.slf4j/**"
+
+    // Sim-Math
+    exclude "META-INF/maven/com.simsilica/**"
+
+    exclude "fabric.mod.json"
+    exclude "architectury.common.json"
+
+    archiveClassifier = "dev-shadow"
+}
+
+remapJar {
+    dependsOn shadowJar
+    input.set shadowJar.archiveFile
+    archiveClassifier = "forge"
+}
+
+jar {
+    archiveClassifier = "dev"
+}
+
+sourcesJar {
+    def commonSources = project(":common").sourcesJar
+    dependsOn commonSources
+    from commonSources.archiveFile.map { zipTree(it) }
+}
+
+components.java {
+    withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
+        skip()
+    }
+}
+
+publishing {
+    publications {
+        mavenForge(MavenPublication) {
+            artifactId = rootProject.archives_base_name + "-" + project.name
+            from components.java
+        }
+    }
+}

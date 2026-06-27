@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "package": "dev.jeryn.mc.rwf.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "GuiMixin",
+    "HudHideMixin",
+    "LocalPlayerMixin",
+    "MonitorScreenMixin",
+    "RenderPlayerMixin"
+  ],
+  "mixins": [
+    "ControlEntityMixin",
+    "LivingEntityMixin",
+    "TardisPilotingManagerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "tardis_refined_rwf",
+  "version": "${version}",
+  "name": "TARDIS Refined: Real World Flight",
+  "description": "Adds physics-based real-world flight simulation and physics-driven TARDIS movement.",
+  "authors": [
+    "Craig"
+  ],
+  "contact": {
+    "homepage": "",
+    "sources": ""
+  },
+  "license": "All-Rights-Reserved",
+  "icon": "assets/tardis_refined_rwf/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.jeryn.mc.rwf.fabric.RealWorldFlightFabric"
+    ],
+    "client": [
+      "dev.jeryn.mc.rwf.fabric.RealWorldFlightFabricClient"
+    ]
+  },
+  "mixins": [
+    "tardis_refined_rwf.mixins.json",
+    "tardis_refined_rwf-common.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.0",
+    "minecraft": ">=1.19.2",
+    "java": ">=17"
+  }
+}

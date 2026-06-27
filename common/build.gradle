@@ -1,0 +1,48 @@
+architectury {
+    common(rootProject.enabled_platforms.split(","))
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/tardis_refined_rwf.accesswidener")
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    modImplementation "ignored:tardis_refined:${rootProject.tardis_refined_version}:fabric"
+
+    /*def bulletVersion = "21.2.1"
+
+    implementation "com.github.stephengold:Libbulletjme:$bulletVersion"
+    modImplementation "com.github.stephengold:Libbulletjme:21.2.1"
+    runtimeOnly "com.github.stephengold:Libbulletjme:21.2.1"
+    compileOnly "com.github.stephengold:Libbulletjme:21.2.1"
+
+    implementation "com.github.stephengold:Minie:9.0.3"
+    modImplementation "com.github.stephengold:Minie:9.0.3"*/
+
+    implementation 'com.github.stephengold:jbullet:1.0.3'
+
+    // javax.vecmath (required by JBullet — not bundled with JDK 9+)
+    // Included in jbullet-jme; if using the original jbullet jar add:
+    implementation 'javax.vecmath:vecmath:1.5.2'
+
+    implementation("io.github.electrostat-lab:snaploader:1.1.1-stable") {
+        transitive = true
+    }
+    runtimeOnly "io.github.electrostat-lab:snaploader:1.1.1-stable"
+
+}
+
+publishing {
+    publications {
+        mavenCommon(MavenPublication) {
+            artifactId = rootProject.archives_base_name
+            from components.java
+        }
+    }
+
+    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+    repositories {
+        // Add repositories to publish to here.
+    }
+}
