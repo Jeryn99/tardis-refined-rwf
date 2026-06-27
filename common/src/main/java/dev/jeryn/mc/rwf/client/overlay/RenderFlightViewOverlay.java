@@ -51,8 +51,7 @@ public class RenderFlightViewOverlay {
         renderSymbol(gui, LEFT, cx - 240, h - 40, player.tickCount);
         renderSymbol(gui, RIGHT, cx + 220, h - 40, -player.tickCount);
 
-        renderVortex(gui, w, h);
-    }
+        renderVortex(gui, w / 2, h);    }
 
     static void updateDanger(LocalPlayer player) {
         float target = 0.0f;
@@ -158,13 +157,14 @@ public class RenderFlightViewOverlay {
     }
 
     static void renderScanlines(GuiGraphics gui, int w, int h) {
-        for (int y = 0; y < h; y += 4) {
-            int alpha = (int) (0x08 + danger * 40); // was 0x22 + danger * 120
+        for (int y = 0; y < h; y += 3) {
+            int alpha = (int) (0x14 + danger * 60);
+            alpha = Math.min(alpha, 180);
+
             int col = (alpha << 24) | 0x00FFAA;
-            gui.fill(0, y, w, y + 1, col); // 1px instead of 2px
+            gui.fill(0, y, w, y + 2, col);
         }
     }
-
     static void renderVortex(GuiGraphics gui, int cx, int h) {
         int t = Minecraft.getInstance().player.tickCount;
 
