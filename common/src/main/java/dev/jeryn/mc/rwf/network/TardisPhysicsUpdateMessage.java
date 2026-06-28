@@ -1,6 +1,5 @@
 package dev.jeryn.mc.rwf.network;
 
-import dev.jeryn.mc.rwf.RWFNetwork;
 import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;

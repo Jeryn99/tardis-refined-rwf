@@ -1,4 +1,4 @@
-package dev.jeryn.mc.rwf;
+package dev.jeryn.mc.rwf.client;
 
 import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.client.player.Input;

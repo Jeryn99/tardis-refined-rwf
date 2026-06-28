@@ -1,7 +1,9 @@
 package dev.jeryn.mc.rwf.forge.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import dev.jeryn.mc.rwf.TardisPhysics;
+import dev.jeryn.mc.rwf.client.model.RWFModelRegistry;
+import dev.jeryn.mc.rwf.client.model.forge.RWFModelRegistryImpl;
+import dev.jeryn.mc.rwf.common.TardisPhysics;
 import dev.jeryn.mc.rwf.RealWorldFlight;
 import dev.jeryn.mc.rwf.client.FlightModeClient;
 import dev.jeryn.mc.rwf.client.RWFKeyMappings;
@@ -14,10 +16,13 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import whocraft.tardis_refined.client.ModelRegistry;
+import whocraft.tardis_refined.client.forge.ModelRegistryImpl;
 
 @Mod.EventBusSubscriber(modid = RealWorldFlight.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class RWFForgeClientEvents {
@@ -46,7 +51,11 @@ public class RWFForgeClientEvents {
         poseStack.popPose();
     }
 
-    ;
+    @SubscribeEvent
+    public static void onRegisterLayerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {
+        RWFModelRegistry.init();
+        RWFModelRegistryImpl.register(event);
+    }
 
 
     @SubscribeEvent

@@ -1,7 +1,7 @@
 package dev.jeryn.mc.rwf.fabric.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import dev.jeryn.mc.rwf.TardisPhysics;
+import dev.jeryn.mc.rwf.common.TardisPhysics;
 import dev.jeryn.mc.rwf.client.FlightModeClient;
 import dev.jeryn.mc.rwf.client.RWFKeyMappings;
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;

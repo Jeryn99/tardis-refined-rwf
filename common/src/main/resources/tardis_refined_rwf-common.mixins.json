@@ -11,7 +11,10 @@
   ],
   "mixins": [
     "ControlEntityMixin",
+    "FrameMixin",
+    "GlobalConsoleRendererMixin",
     "LivingEntityMixin",
+    "TardisClientLogicMixin",
     "TardisPilotingManagerMixin"
   ],
   "injectors": {

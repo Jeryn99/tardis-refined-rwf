@@ -1,6 +1,5 @@
 package dev.jeryn.mc.rwf.network;
 
-import dev.jeryn.mc.rwf.RWFNetwork;
 import dev.jeryn.mc.rwf.client.ClientFlightData;
 import dev.jeryn.mc.rwf.client.ClientFlightTracker;
 import net.minecraft.core.registries.Registries;

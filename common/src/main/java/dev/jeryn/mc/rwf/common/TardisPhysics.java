@@ -1,4 +1,4 @@
-package dev.jeryn.mc.rwf;
+package dev.jeryn.mc.rwf.common;
 
 import com.bulletphysics.collision.broadphase.BroadphaseInterface;
 import com.bulletphysics.collision.broadphase.DbvtBroadphase;

@@ -4,7 +4,7 @@ import com.bulletphysics.linearmath.Transform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import dev.jeryn.mc.rwf.TardisPhysics;
+import dev.jeryn.mc.rwf.common.TardisPhysics;
 import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -82,7 +82,7 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
 
     private static void renderParticles(TardisEntity entity) {
         Entity controllingPlayer = entity.getVehicle();
-
+        if(controllingPlayer == null) return;
         BlockPos start = controllingPlayer.blockPosition();
         BlockState ground = null;
         double surfaceY = 0;

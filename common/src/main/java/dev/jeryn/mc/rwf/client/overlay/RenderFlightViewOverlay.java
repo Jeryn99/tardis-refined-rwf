@@ -33,7 +33,6 @@ public class RenderFlightViewOverlay {
         if (tardisClientData.isFlying()) return;
 
         updateDanger(player);
-        applyCameraShake(mc, player);
 
         Window win = mc.getWindow();
         int w = win.getGuiScaledWidth();
@@ -68,18 +67,6 @@ public class RenderFlightViewOverlay {
         danger += (target - danger) * 0.08f;
     }
 
-    static void applyCameraShake(Minecraft mc, LocalPlayer player) {
-        if (danger < 0.15f) return;
-
-        float t = player.tickCount;
-
-        float intensity = danger * 0.6f;
-
-        double shakeX = (Mth.sin(t * 0.9f) + (Math.random() - 0.5)) * intensity;
-        double shakeY = (Mth.cos(t * 1.1f) + (Math.random() - 0.5)) * intensity;
-
-        mc.gameRenderer.getMainCamera().move((float) shakeX, (float) shakeY, 0);
-    }
 
     static void renderSymbol(GuiGraphics gui, ResourceLocation tex, int x, int y, float rot) {
         if (tex == null) return;

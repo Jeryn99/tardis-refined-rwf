@@ -1,6 +1,6 @@
 package dev.jeryn.mc.rwf.mixin;
 
-import dev.jeryn.mc.rwf.ClientUtil;
+import dev.jeryn.mc.rwf.client.ClientUtil;
 import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;

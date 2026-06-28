@@ -1,6 +1,7 @@
 package dev.jeryn.mc.rwf.forge;
 
 import dev.jeryn.mc.rwf.RealWorldFlight;
+import dev.jeryn.mc.rwf.common.entity.FlightTracker;
 import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -12,8 +13,16 @@ public class RWFForgeCommonEvents {
 
     @SubscribeEvent
     public static void onLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getEntity() instanceof ServerPlayer serverPlayer && serverPlayer.getFirstPassenger() instanceof TardisEntity tardis) {
-            tardis.finishFlight(serverPlayer.serverLevel(), false);
+        if (!(event.getEntity() instanceof ServerPlayer serverPlayer)) return;
+        if (!(serverPlayer.getFirstPassenger() instanceof TardisEntity)) return;
+
+        FlightTracker.FlightData flightData = FlightTracker.IN_FLIGHT.values().stream()
+                .filter(data -> data.player().getUUID().equals(serverPlayer.getUUID()))
+                .findFirst()
+                .orElse(null);
+
+        if (flightData != null) {
+            FlightTracker.loggedOut(flightData);
         }
     }
 

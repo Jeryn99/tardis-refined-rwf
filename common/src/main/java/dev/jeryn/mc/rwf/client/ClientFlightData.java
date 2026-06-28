@@ -6,6 +6,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.UUID;
+
 import static net.minecraft.core.registries.Registries.DIMENSION;
 
 public record ClientFlightData(
@@ -14,7 +16,8 @@ public record ClientFlightData(
         Vec3 originPos,
         float originYaw,
         float originPitch,
-        boolean isFreefalling
+        boolean isFreefalling,
+        UUID pilot
 ) {
     public static ClientFlightData fromBytes(FriendlyByteBuf buf) {
         ResourceKey<Level> tardisDim = ResourceKey.create(DIMENSION, buf.readResourceLocation());
@@ -23,7 +26,8 @@ public record ClientFlightData(
         float originYaw = buf.readFloat();
         float originPitch = buf.readFloat();
         boolean isFreefalling = buf.readBoolean();
-        return new ClientFlightData(tardisDim, originDim, originPos, originYaw, originPitch, isFreefalling);
+        UUID playerUUID = buf.readUUID();
+        return new ClientFlightData(tardisDim, originDim, originPos, originYaw, originPitch, isFreefalling, playerUUID);
     }
 
     public static ClientFlightData from(FlightTracker.FlightData data, ResourceKey<Level> tardisDimension) {
@@ -33,7 +37,8 @@ public record ClientFlightData(
                 data.originPos(),
                 data.originYaw(),
                 data.originPitch(),
-                data.isFreefalling()
+                data.isFreefalling(),
+                data.player().getUUID()
         );
     }
 
@@ -46,5 +51,6 @@ public record ClientFlightData(
         buf.writeFloat(originYaw);
         buf.writeFloat(originPitch);
         buf.writeBoolean(isFreefalling);
+        buf.writeUUID(pilot);
     }
 }

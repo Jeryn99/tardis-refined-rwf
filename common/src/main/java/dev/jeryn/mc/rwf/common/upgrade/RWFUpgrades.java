@@ -27,8 +27,19 @@ public class RWFUpgrades {
     public static final RegistrySupplier<Upgrade> FLIGHT_EFFICIENCY_3;
     public static final RegistrySupplier<Upgrade> FLIGHT_EFFICIENCY_4;
     public static final RegistrySupplier<Upgrade> FLIGHT_EFFICIENCY_5;
+    public static final RegistrySupplier<Upgrade> AUTO_PILOT;
 
     static {
+
+        AUTO_PILOT = RWF_UPGRADES.register("auto_pilot", () ->
+                new Upgrade(
+                        Items.ELYTRA::getDefaultInstance,
+                        RegistryHelper.makeKey("auto_pilot"),
+                        UpgradeType.MAIN_UPGRADE
+                )
+                        .setSkillPointsRequired(1)
+                        .setPosition(9.0, 7.0)
+        );
 
         // Unlock flight entirely
         FLIGHT_UNLOCK = RWF_UPGRADES.register("flight_unlock", () ->

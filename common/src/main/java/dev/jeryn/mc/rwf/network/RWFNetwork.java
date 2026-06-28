@@ -1,6 +1,6 @@
-package dev.jeryn.mc.rwf;
+package dev.jeryn.mc.rwf.network;
 
-import dev.jeryn.mc.rwf.network.*;
+import dev.jeryn.mc.rwf.RealWorldFlight;
 import net.minecraft.resources.ResourceLocation;
 import whocraft.tardis_refined.common.network.MessageType;
 import whocraft.tardis_refined.common.network.NetworkManager;

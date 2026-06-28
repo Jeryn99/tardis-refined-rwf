@@ -83,7 +83,6 @@ public class TardisEntity extends Entity {
                 tardisLevelOperator.getExteriorManager().removeExteriorBlock();
 
                 TardisEntity tardis = new TardisEntity(RWFEntityTypes.TARDIS.get(), tardisLvl);
-                tardis.setDimension(tardisLevelOperator.getLevel().dimension());
                 tardis.setPos(
                         lastKnown.getPosition().getX(),
                         lastKnown.getPosition().getY(),
@@ -146,14 +145,13 @@ public class TardisEntity extends Entity {
         if (tardis.isPassenger()) forceDismount(tardis);
 
         tardis.setPose(Pose.STANDING);
-        tardis.vehicle = player;
+        tardis.startRiding(player);
         player.addPassenger(tardis);
     }
 
     private static void forceDismount(TardisEntity tardis) {
-        Entity v = tardis.vehicle;
+        Entity v = tardis.getVehicle();
         if (v != null) {
-            tardis.vehicle = null;
             v.removePassenger(tardis);
         }
     }
