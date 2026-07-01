@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
@@ -24,16 +25,37 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import whocraft.tardis_refined.common.blockentity.console.GlobalConsoleBlockEntity;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class ConsolePilotRenderer {
 
     private static ConsolePilotModel<?> pilotModel;
 
+    // Cached immutable list of parts for the pilot model, built once instead of every frame.
+    private static List<ModelPart> pilotModelParts;
+
+    // How long cached profiles/skins are trusted before we re-fetch. Keeps the common case
+    // (same pilot flying for a while) cheap while still picking up skin/name changes eventually.
+    private static final long PROFILE_CACHE_TTL_MS = TimeUnit.MINUTES.toMillis(5);
+    private static final long SKIN_CACHE_TTL_MS = TimeUnit.MINUTES.toMillis(5);
+
+    private record CachedValue<T>(T value, long timestamp) {
+        boolean isExpired(long ttlMillis) {
+            return System.currentTimeMillis() - timestamp > ttlMillis;
+        }
+    }
+
+    // GameProfile lookups (SkullBlockEntity.updateGameprofile) kick off async work and are
+    // relatively expensive; there's no reason to redo them every frame for the same pilot.
+    private static final Map<UUID, CachedValue<GameProfile>> profileCache = new ConcurrentHashMap<>();
+
     public static void init(EntityModelSet modelSet) {
         pilotModel = new ConsolePilotModel<>(modelSet.bakeLayer(RWFModelRegistry.PILOT));
+        pilotModelParts = pilotModel.root().getAllParts().toList();
     }
 
     public static void render(
@@ -45,62 +67,57 @@ public class ConsolePilotRenderer {
     ) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || pilotModel == null) {
-            init(Minecraft.getInstance().getEntityModels());
+            init(mc.getEntityModels());
             return;
         }
 
         Level level = blockEntity.getLevel();
         if (level == null) return;
 
-        UUID pilot = ClientFlightTracker.get(blockEntity.getLevel().dimension())
+        UUID pilot = ClientFlightTracker.get(level.dimension())
                 .map(ClientFlightData::pilot)
                 .orElse(null);
         if (pilot == null) return;
 
-        renderPilot(pilot, partialTick, poseStack, bufferSource, packedLight, level);
+        renderPilot(mc, pilot, partialTick, poseStack, bufferSource, packedLight);
     }
 
-
-    @SuppressWarnings("unchecked")
     private static void renderPilot(
+            Minecraft mc,
             UUID pilot,
             float partialTick,
             PoseStack poseStack,
             MultiBufferSource bufferSource,
-            int packedLight,
-            Level level
+            int packedLight
     ) {
         ConsolePilotModel<?> model = pilotModel;
-        model.root().getAllParts().forEach(ModelPart::resetPose);
+        for (ModelPart part : pilotModelParts) {
+            part.resetPose();
+        }
 
-        float ageInTicks = Minecraft.getInstance().player.tickCount + partialTick;
+        float ageInTicks = mc.player.tickCount + partialTick;
         model.setupAnim(null, 0, 0, ageInTicks, 0, 0);
 
         poseStack.pushPose();
         poseStack.translate(0.0F, 0F, -2);
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
 
-        GameProfile gameProfile = new GameProfile(pilot, "");
-        SkullBlockEntity.updateGameprofile(gameProfile, gameProfile1 -> {
-        });
-
-        ResourceLocation skinTexture = getPlayerSkin(gameProfile);
+        //GameProfile gameProfile = getOrCreateProfile(pilot);
+        ResourceLocation skinTexture = getPlayerSkin(Minecraft.getInstance().player.getGameProfile());
 
         VertexConsumer innerConsumer = bufferSource.getBuffer(RenderType.entityTranslucent(skinTexture));
         model.renderToBuffer(poseStack, innerConsumer, packedLight, OverlayTexture.NO_OVERLAY, 1F, 1F, 1F, 1F);
 
         // ── Name tag ──────────────────────────────────────────────────────────────
-        String name = Minecraft.getInstance().getConnection() != null
-                && Minecraft.getInstance().getConnection().getPlayerInfo(pilot) != null
-                && !Minecraft.getInstance().getConnection().getPlayerInfo(pilot).getProfile().getName().isEmpty()
-                ? Minecraft.getInstance().getConnection().getPlayerInfo(pilot).getProfile().getName()
-                : pilot.toString();
+        if (!mc.options.hideGui) {
+            PlayerInfo playerInfo = mc.getConnection() != null ? mc.getConnection().getPlayerInfo(pilot) : null;
+            String playerName = playerInfo != null ? playerInfo.getProfile().getName() : "";
+            String name = !playerName.isEmpty() ? playerName : pilot.toString();
 
-        if (!name.isEmpty() && !Minecraft.getInstance().options.hideGui) {
             renderNameTag(
-                ChatFormatting.YELLOW + name + ChatFormatting.DARK_GRAY + " [" + ChatFormatting.GOLD + "In Flight" + ChatFormatting.DARK_GRAY + "]",
-                poseStack, bufferSource, packedLight
-        );
+                    ChatFormatting.YELLOW + name + ChatFormatting.DARK_GRAY + " [" + ChatFormatting.GOLD + "Pilot" + ChatFormatting.DARK_GRAY + "]",
+                    poseStack, bufferSource, packedLight
+            );
         }
         // ─────────────────────────────────────────────────────────────────────────
 
@@ -113,22 +130,21 @@ public class ConsolePilotRenderer {
             MultiBufferSource bufferSource,
             int packedLight
     ) {
-        Font font = Minecraft.getInstance().font;
+        Minecraft mc = Minecraft.getInstance();
+        Font font = mc.font;
         Component nameComponent = Component.literal(name);
 
         poseStack.pushPose();
 
         poseStack.translate(0.0F, -1F, 0.0F);
-
-
         poseStack.scale(-0.025F, 0.025F, 0.025F);
 
         Matrix4f matrix = poseStack.last().pose();
-        float bgOpacity = Minecraft.getInstance().options.getBackgroundOpacity(0.25F);
+        float bgOpacity = mc.options.getBackgroundOpacity(0.25F);
         int bgColor = (int) (bgOpacity * 255.0F) << 24;
 
         float halfWidth = (float) (-font.width(nameComponent)) / 2.0F;
-        poseStack.mulPose(Minecraft.getInstance().getEntityRenderDispatcher().cameraOrientation());
+        poseStack.mulPose(mc.getEntityRenderDispatcher().cameraOrientation());
 
         font.drawInBatch(
                 nameComponent,
@@ -157,20 +173,41 @@ public class ConsolePilotRenderer {
         poseStack.popPose();
     }
 
-    private static final Map<UUID, ResourceLocation> skinCache = new ConcurrentHashMap<>();
+    private static GameProfile getOrCreateProfile(UUID pilot) {
+        CachedValue<GameProfile> cached = profileCache.get(pilot);
+        if (cached != null && !cached.isExpired(PROFILE_CACHE_TTL_MS)) {
+            return cached.value();
+        }
+
+        GameProfile gameProfile = new GameProfile(pilot, "");
+        // Store a placeholder immediately (with a fresh timestamp) so concurrent calls this
+        // frame/next frame don't all fire their own lookups while we wait on the async result.
+        profileCache.put(pilot, new CachedValue<>(gameProfile, System.currentTimeMillis()));
+
+        SkullBlockEntity.updateGameprofile(gameProfile, profile -> {
+            if (profile != null) {
+                profileCache.put(pilot, new CachedValue<>(profile, System.currentTimeMillis()));
+            }
+        });
+
+        return gameProfile;
+    }
+
+    private static final Map<UUID, CachedValue<ResourceLocation>> skinCache = new ConcurrentHashMap<>();
 
     public static void loadSkin(@Nullable GameProfile gameProfile) {
         if (gameProfile == null) return;
 
         UUID uuid = UUIDUtil.getOrCreatePlayerUUID(gameProfile);
-        if (skinCache.containsKey(uuid)) return; // Already loading or loaded
+        CachedValue<ResourceLocation> cached = skinCache.get(uuid);
+        if (cached != null && !cached.isExpired(SKIN_CACHE_TTL_MS)) return; // Already loading or fresh
 
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.getSkinManager().registerSkins(
                 gameProfile,
                 (type, location, texture) -> {
                     if (type == MinecraftProfileTexture.Type.SKIN) {
-                        skinCache.put(uuid, location);
+                        skinCache.put(uuid, new CachedValue<>(location, System.currentTimeMillis()));
                     }
                 },
                 true // requireSecure - set false if you want offline/insecure skins too
@@ -178,14 +215,19 @@ public class ConsolePilotRenderer {
     }
 
     public static ResourceLocation getPlayerSkin(@Nullable GameProfile gameProfile) {
+
+        if(true){
+            return Minecraft.getInstance().getSkinManager().getInsecureSkinLocation(gameProfile);
+        }
+
         if (gameProfile != null) {
             UUID uuid = UUIDUtil.getOrCreatePlayerUUID(gameProfile);
 
             loadSkin(gameProfile);
 
-            ResourceLocation skin = skinCache.get(uuid);
-            if (skin != null) {
-                return skin;
+            CachedValue<ResourceLocation> cached = skinCache.get(uuid);
+            if (cached != null) {
+                return cached.value();
             }
             return DefaultPlayerSkin.getDefaultSkin(uuid);
         } else {

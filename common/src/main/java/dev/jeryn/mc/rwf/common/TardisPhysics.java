@@ -19,6 +19,8 @@ import dev.jeryn.mc.rwf.network.SetFreefallMessage;
 import dev.jeryn.mc.rwf.network.SyncTardisPhysicsMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Blocks;
@@ -99,7 +101,26 @@ public class TardisPhysics {
 
         TardisClientData tardisClientData = TardisClientData.getInstance(tardis.getTardisDimension());
 
-        if(tardisClientData.getFuel() == 0){
+        boolean isCollided = mc.player.horizontalCollision || mc.player.verticalCollision;
+        boolean isFlying = mc.player.getAbilities().flying;
+
+        if (isCollided && isFlying) {
+            double x = mc.player.getX();
+            double y = mc.player.getY();
+            double z = mc.player.getZ();
+
+            // Blue-ish "temporal energy" dust, scale controls particle size
+            DustParticleOptions tardisDust = new DustParticleOptions(new org.joml.Vector3f(0.3F, 0.6F, 1.0F), 1.2F);
+
+            mc.level.addParticle(ParticleTypes.LARGE_SMOKE, x, y + 1.0D, z, 0.2D, 1.0D, 0.0D);
+            mc.level.addParticle(ParticleTypes.SMOKE, x, y + 1.0D, z, 0.0D, 0.2D, 0.0D);
+            mc.level.addParticle(tardisDust, x, y + 1.0D, z, 0.0D, 0.0D, 0.0D);
+            mc.level.addParticle(ParticleTypes.LARGE_SMOKE, x, y - 1.0D, z, 0.0D, 0.5D, 0.0D);
+            mc.level.addParticle(ParticleTypes.SMOKE, x, y - 1.0D, z, 0.0D, 0.2D, 0.0D);
+            mc.level.addParticle(tardisDust, x, y - 1.0D, z, 0.0D, 0.0D, 0.0D);
+        }
+
+        if (tardisClientData.getFuel() == 0) {
             clientSideFreeFall = true;
             new SetFreefallMessage(true).send();
         }
@@ -234,6 +255,8 @@ public class TardisPhysics {
 
         dynamicsWorld.stepSimulation(dt, 5);
 
+        checkWallCollisions(player, tardis);
+
         Transform wt = new Transform();
         tardis_rigid_body.getWorldTransform(wt);
 
@@ -290,6 +313,141 @@ public class TardisPhysics {
         dynamicsWorld.setGravity(new Vector3f(0, -9.8f, 0));
         clock.reset();
 
+    }
+
+    private static void checkWallCollisions(Player player, TardisEntity tardis) {
+        if (dynamicsWorld == null || tardis_rigid_body == null || dispatcher == null) return;
+
+
+        int numManifolds = dispatcher.getNumManifolds();
+        for (int i = 0; i < numManifolds; i++) {
+            var manifold = dispatcher.getManifoldByIndexInternal(i);
+
+            Object bodyA = manifold.getBody0();
+            Object bodyB = manifold.getBody1();
+
+            if (bodyA != tardis_rigid_body && bodyB != tardis_rigid_body) continue;
+
+            int numContacts = manifold.getNumContacts();
+            for (int c = 0; c < numContacts; c++) {
+                var pt = manifold.getContactPoint(c);
+                if (pt.distance1 > 0f) continue; // not actually touching
+
+                Vector3f normal = new Vector3f(pt.normalWorldOnB);
+
+                if (bodyA == tardis_rigid_body) normal.negate();
+
+                float horizontal = (float) Math.sqrt(normal.x * normal.x + normal.z * normal.z);
+
+                boolean isWall = horizontal > 0.6f && Math.abs(normal.y) < 0.4f;
+
+                if (isWall) {
+                    onWallCollision(normal, pt.appliedImpulse, player, tardis);
+                }
+            }
+        }
+    }
+
+    private static float lastWallHitTime = 0f;
+
+    private static final float WALL_HIT_COOLDOWN = 0.3f; // seconds, prevents scrape-spam
+
+    private static void onWallCollision(Vector3f normal, float impulse, Player player, TardisEntity tardis) {
+        //  if (impulse < 5f) return;
+
+        System.out.println("wall hit!");
+
+      /*  float now = (float) clock.getTimeMicroseconds() / 1_000_000.0F;
+        if (now - lastWallHitTime < WALL_HIT_COOLDOWN) return;
+        lastWallHitTime = now;*/
+
+        // scale everything off impulse so a gentle scrape and a full-speed slam feel different
+        float severity = Math.min(1.0f, impulse / 60f); // tune 60f against your typical hit magnitudes
+
+        heat = Math.min(1.0f, heat + impulse * 0.002f);
+
+        // --- punchy bounce off the wall instead of just absorbing the hit ---
+        if (tardis_rigid_body != null) {
+            Vector3f vel = tardis_rigid_body.getLinearVelocity(new Vector3f());
+            float velAlongNormal = vel.dot(normal);
+            if (velAlongNormal < 0) { // moving into the wall
+                Vector3f reflect = new Vector3f(normal);
+                reflect.scale(-velAlongNormal * (1.2f + severity * 0.6f)); // restitution-ish kick
+                vel.add(reflect);
+                tardis_rigid_body.setLinearVelocity(vel);
+            }
+
+            // extra tumble on impact, direction biased by the wall normal (feels like a real crash)
+            Vector3f crashTorque = new Vector3f(
+                    normal.z * severity * 4f + (float) (Math.random() - 0.5) * severity * 2f,
+                    (float) (Math.random() - 0.5) * severity * 3f,
+                    -normal.x * severity * 4f + (float) (Math.random() - 0.5) * severity * 2f
+            );
+            tardis_rigid_body.applyTorque(crashTorque);
+        }
+
+        // --- sparks at the impact point ---
+        spawnWallImpactParticles(player, normal, severity);
+    }
+
+    private static void spawnWallImpactParticles(Player player, Vector3f normal, float severity) {
+        var level = player.level();
+
+        // push the spawn point out from the player toward the wall, roughly chest height
+        double originX = player.getX() + normal.x * 1.0;
+        double originY = player.getY() + 1.0;
+        double originZ = player.getZ() + normal.z * 1.0;
+
+        int count = 8 + (int) (severity * 16);
+
+        for (int i = 0; i < count; i++) {
+            // scatter around the impact point, biased outward along the normal
+            double ox = normal.x * 0.3 + (Math.random() - 0.5) * 0.6;
+            double oy = (Math.random() - 0.5) * 0.8;
+            double oz = normal.z * 0.3 + (Math.random() - 0.5) * 0.6;
+
+            // velocity kicks outward along the normal with some random scatter
+            double vx = normal.x * (0.1 + Math.random() * 0.15 * severity);
+            double vy = 0.05 + Math.random() * 0.1 * severity;
+            double vz = normal.z * (0.1 + Math.random() * 0.15 * severity);
+
+            level.addParticle(
+                    net.minecraft.core.particles.ParticleTypes.CRIT,
+                    originX + ox, originY + oy, originZ + oz,
+                    vx, vy, vz
+            );
+        }
+        System.out.println(severity);
+        // heavier hits get a burst of smoke too, for weight
+       // if (severity > 0.5f) {
+            int smokeCount = (int) (severity * 6);
+            for (int i = 0; i < smokeCount; i++) {
+                double ox = normal.x * 0.3 + (Math.random() - 0.5) * 0.4;
+                double oy = (Math.random() - 0.5) * 0.6;
+                double oz = normal.z * 0.3 + (Math.random() - 0.5) * 0.4;
+
+                level.addParticle(
+                        net.minecraft.core.particles.ParticleTypes.SMOKE,
+                        originX + ox, originY + oy, originZ + oz,
+                        normal.x * 0.05, 0.03, normal.z * 0.05
+                );
+         //   }
+        }
+
+        // scorch-y flame flecks on the hardest hits, ties nicely into your heat system
+     //   if (severity > 0.8f) {
+            for (int i = 0; i < 4; i++) {
+                double ox = normal.x * 0.3 + (Math.random() - 0.5) * 0.3;
+                double oy = (Math.random() - 0.5) * 0.4;
+                double oz = normal.z * 0.3 + (Math.random() - 0.5) * 0.3;
+
+                level.addParticle(
+                        net.minecraft.core.particles.ParticleTypes.SMALL_FLAME,
+                        originX + ox, originY + oy, originZ + oz,
+                        0, 0.02, 0
+                );
+        //    }
+        }
     }
 
     private static void syncNearbyBlockColliders(Player player) {

@@ -10,7 +10,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.util.Mth;
 import whocraft.tardis_refined.client.TardisClientData;
 
 public class RenderFlightViewOverlay {
@@ -152,6 +151,7 @@ public class RenderFlightViewOverlay {
             gui.fill(0, y, w, y + 2, col);
         }
     }
+
     static void renderVortex(GuiGraphics gui, int cx, int h) {
         int t = Minecraft.getInstance().player.tickCount;
 

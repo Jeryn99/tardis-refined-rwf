@@ -60,10 +60,36 @@ public class TardisEntity extends Entity {
             SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.STRING);
     public static final EntityDataAccessor<Boolean> DOOR =
             SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.BOOLEAN);
+    public static final EntityDataAccessor<Float> SHIELD =
+            SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.FLOAT);
+
+    /* ---------------- SHIELD CONFIG ---------------- */
+
+    public static final float MAX_SHIELD = 100.0F;
+    // how much shield damage 1 unit of "collision speed" force translates to
+    private static final float COLLISION_SHIELD_DAMAGE_SCALE = 14.0F;
+    // how much shield damage 1 unit of block-impact "speed" translates to
+    private static final float BLOCK_IMPACT_SHIELD_DAMAGE_SCALE = 0.6F;
+    // ticks of no shield damage before passive regen kicks back in
+    private static final int SHIELD_REGEN_DELAY_TICKS = 100; // 5 seconds
+    // shield points restored per tick once regen is active
+    private static final float SHIELD_REGEN_PER_TICK = 0.25F; // ~5/sec
+
+    private int lastShieldHitTick = Integer.MIN_VALUE;
 
     public float[] physicsMatrix = null;
     private Vec3 last = new Vec3(0,0,0);
 
+
+    private float lastMovementFactor = 0.0F;
+
+    public float getLastMovementFactor() {
+        return lastMovementFactor;
+    }
+
+    public void setLastMovementFactor(float value) {
+        this.lastMovementFactor = value;
+    }
 
     public TardisEntity(EntityType<TardisEntity> entityType, Level level) {
         super(entityType, level);
@@ -83,6 +109,7 @@ public class TardisEntity extends Entity {
                 tardisLevelOperator.getExteriorManager().removeExteriorBlock();
 
                 TardisEntity tardis = new TardisEntity(RWFEntityTypes.TARDIS.get(), tardisLvl);
+                tardis.setDimension(tardisLvl.dimension());
                 tardis.setPos(
                         lastKnown.getPosition().getX(),
                         lastKnown.getPosition().getY(),
@@ -125,13 +152,34 @@ public class TardisEntity extends Entity {
     }
 
     private static void teleportToInterior(TardisLevelOperator op, Entity e) {
-        Level lvl = op.getLevel();
-        if (lvl instanceof ServerLevel server) {
-            BlockPos pos = op.getInternalDoor().getTeleportPosition();
-            RWFTeleport.performTeleport(e, server,
-                    pos.getX(), pos.getY(), pos.getZ(),
-                    e.getYRot(), e.getXRot());
+        if (op == null || e == null) {
+            return;
         }
+
+        Level level = op.getLevel();
+        if (!(level instanceof ServerLevel server)) {
+            return;
+        }
+
+        var door = op.getInternalDoor();
+        if (door == null) {
+            return;
+        }
+
+        BlockPos pos = door.getTeleportPosition();
+        if (pos == null) {
+            return;
+        }
+
+        RWFTeleport.performTeleport(
+                e,
+                server,
+                pos.getX(),
+                pos.getY(),
+                pos.getZ(),
+                e.getYRot(),
+                e.getXRot()
+        );
     }
 
     public static ServerLevel getLevel(ResourceLocation rl) {
@@ -141,18 +189,16 @@ public class TardisEntity extends Entity {
 
     private static void forceMount(TardisEntity tardis, ServerPlayer player) {
         if (tardis.getVehicle() == player) return;
-
-        if (tardis.isPassenger()) forceDismount(tardis);
-
         tardis.setPose(Pose.STANDING);
-        tardis.startRiding(player);
+        tardis.vehicle = player;
         player.addPassenger(tardis);
     }
 
     private static void forceDismount(TardisEntity tardis) {
-        Entity v = tardis.getVehicle();
+        Entity v = tardis.vehicle;
         if (v != null) {
-            v.removePassenger(tardis);
+            tardis.vehicle = null;
+            tardis.stopRiding();
         }
     }
 
@@ -199,6 +245,7 @@ public class TardisEntity extends Entity {
 
         if (!(level() instanceof ServerLevel serverLevel)) return;
 
+        regenShield();
 
 
         if (isPassenger()) {
@@ -222,6 +269,7 @@ public class TardisEntity extends Entity {
             }
 
             if (getTardisLevel(serverLevel).dimensionTypeId() != TRDimensionTypes.TARDIS) {
+                System.out.println("[RWF] Killing Tardis due to no Dimension");
                 finishFlight(serverLevel, false);
                 discard();
                 return;
@@ -351,6 +399,8 @@ public class TardisEntity extends Entity {
 
         Vec3 motion = pilot.getDeltaMovement();
         double speed = motion.length() * 23;
+
+        damageShield((float) (speed * BLOCK_IMPACT_SHIELD_DAMAGE_SCALE));
 
         //    if (!pilot.isSprinting()) return;
         //   if (speed < 0.25D) return;
@@ -483,6 +533,8 @@ public class TardisEntity extends Entity {
 
         if (speed < 0.4D) return;
 
+        damageShield((float) (speed * COLLISION_SHIELD_DAMAGE_SCALE));
+
         Vec3 dir = motion.normalize();
 
         DamageSource source = (pilot instanceof Player player)
@@ -529,6 +581,56 @@ public class TardisEntity extends Entity {
         getEntityData().set(DOOR, open);
     }
 
+    /* ---------------- SHIELD ---------------- */
+
+    public float getShield() {
+        return getEntityData().get(SHIELD);
+    }
+
+    public float getMaxShield() {
+        return MAX_SHIELD;
+    }
+
+    public void setShield(float value) {
+        getEntityData().set(SHIELD, Math.max(0F, Math.min(MAX_SHIELD, value)));
+    }
+
+    public boolean isShieldDepleted() {
+        return getShield() <= 0F;
+    }
+
+    /**
+     * Drains the shield by the given amount. Returns any amount that
+     * "overflowed" past 0 shield, i.e. unabsorbed damage, so callers can
+     * decide later whether that should bleed through to the Tardis or pilot.
+     */
+    public float damageShield(float amount) {
+        if (amount <= 0F) {
+            return 0F;
+        }
+
+        float current = getShield();
+        float remaining = current - amount;
+        float overflow = remaining < 0F ? -remaining : 0F;
+
+        setShield(Math.max(0F, remaining));
+        lastShieldHitTick = tickCount;
+
+        return overflow;
+    }
+
+    private void regenShield() {
+        if (getShield() >= MAX_SHIELD) {
+            return;
+        }
+
+        if (tickCount - lastShieldHitTick < SHIELD_REGEN_DELAY_TICKS) {
+            return;
+        }
+
+        setShield(getShield() + SHIELD_REGEN_PER_TICK);
+    }
+
     public ResourceLocation getShellThemeId() {
         return new ResourceLocation(getEntityData().get(SHELL_THEME));
     }
@@ -549,12 +651,14 @@ public class TardisEntity extends Entity {
         entityData.define(SHELL_THEME, ShellTheme.FACTORY.getId().toString());
         entityData.define(SHELL_PATTERN, "tardis_refined:default");
         entityData.define(DOOR, false);
+        entityData.define(SHIELD, MAX_SHIELD);
     }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
         setShellTheme(new ResourceLocation(tag.getString("shell_theme")));
         setDoorOpen(tag.getBoolean("open"));
+        setShield(tag.contains("shield") ? tag.getFloat("shield") : MAX_SHIELD);
     }
 
     /* ---------------- FORCE MOUNT ---------------- */
@@ -563,6 +667,7 @@ public class TardisEntity extends Entity {
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putString("shell_theme", getShellThemeId().toString());
         tag.putBoolean("open", isOpen());
+        tag.putFloat("shield", getShield());
     }
 
     @Override

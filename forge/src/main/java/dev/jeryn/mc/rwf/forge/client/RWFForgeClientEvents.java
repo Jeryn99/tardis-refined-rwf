@@ -1,12 +1,12 @@
 package dev.jeryn.mc.rwf.forge.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import dev.jeryn.mc.rwf.client.model.RWFModelRegistry;
-import dev.jeryn.mc.rwf.client.model.forge.RWFModelRegistryImpl;
-import dev.jeryn.mc.rwf.common.TardisPhysics;
 import dev.jeryn.mc.rwf.RealWorldFlight;
 import dev.jeryn.mc.rwf.client.FlightModeClient;
 import dev.jeryn.mc.rwf.client.RWFKeyMappings;
+import dev.jeryn.mc.rwf.client.model.RWFModelRegistry;
+import dev.jeryn.mc.rwf.client.model.forge.RWFModelRegistryImpl;
+import dev.jeryn.mc.rwf.common.TardisPhysics;
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;
 import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import dev.jeryn.mc.rwf.network.RWFOpenDoor;
@@ -21,8 +21,6 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import whocraft.tardis_refined.client.ModelRegistry;
-import whocraft.tardis_refined.client.forge.ModelRegistryImpl;
 
 @Mod.EventBusSubscriber(modid = RealWorldFlight.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class RWFForgeClientEvents {
@@ -94,7 +92,7 @@ public class RWFForgeClientEvents {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent event) {
-        if(event.type == TickEvent.Type.CLIENT && event.phase == TickEvent.Phase.END){
+        if (event.type == TickEvent.Type.CLIENT && event.phase == TickEvent.Phase.END) {
             TardisPhysics.onClientTick();
         }
     }

@@ -2,78 +2,126 @@ package dev.jeryn.mc.rwf.client;
 
 import dev.jeryn.frame.tardis.Frame;
 import dev.jeryn.mc.rwf.RealWorldFlight;
-import mc.craig.software.regen.util.AnimationUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.animation.AnimationDefinition;
 import net.minecraft.client.model.HierarchicalModel;
-import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.LivingEntity;
+import whocraft.tardis_refined.client.TardisClientData;
+
+import java.util.Random;
 
 public class ConsolePilotModel<T extends LivingEntity> extends HierarchicalModel<T> {
 
-    public static final AnimationDefinition PILOTING = Frame.loadAnimation(new ResourceLocation(RealWorldFlight.MOD_ID, "frame/player/pilot.json"));
-    private static final AnimationState PILOTING_STATE = new AnimationState();
+    // ── Animation definitions ─────────────────────────────────────────────────
+    public static final AnimationDefinition PILOT_1 = Frame.loadAnimation(
+            new ResourceLocation(RealWorldFlight.MOD_ID, "frame/player/pilot_1.json"));
+
+    public static final AnimationDefinition PILOT_2 = Frame.loadAnimation(
+            new ResourceLocation(RealWorldFlight.MOD_ID, "frame/player/pilot_2.json"));
+
+    public static final AnimationDefinition PILOT_3 = Frame.loadAnimation(
+            new ResourceLocation(RealWorldFlight.MOD_ID, "frame/player/pilot_3.json")); // fixed typo (was pilot_4.json)
+
+    public static final AnimationDefinition PILOT_4 = Frame.loadAnimation(
+            new ResourceLocation(RealWorldFlight.MOD_ID, "frame/player/pilot_4.json"));
+
+    public static final AnimationDefinition PANIC = Frame.loadAnimation(
+            new ResourceLocation(RealWorldFlight.MOD_ID, "frame/player/pilot_4.json"));
+
+    private static final AnimationDefinition[] PILOTING_ANIMATIONS = {
+            PILOT_1, PILOT_2, PILOT_3, PILOT_4
+    };
+
+    // ── Model ─────────────────────────────────────────────────────────────────
     private final ModelPart root;
+
+    // ── Single active state — hard cuts, no blending ────────────────────────────
+    private final AnimationState state = new AnimationState();
+    private AnimationDefinition currentDef = null;
+
+    private final Random random = new Random();
+    private int lastPilotIndex = -1;
+
+    // Tick (not frame) at which the current animation started.
+    private int switchTick = -1;
 
     public ConsolePilotModel(ModelPart modelPart) {
         super();
         this.root = modelPart;
-        young = false;
+        this.young = false;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private static int holdTicksFor(AnimationDefinition def) {
+        return Math.max(1, Math.round(def.lengthInSeconds() * 20f));
+    }
+
+    private AnimationDefinition pickNextPilotAnimation() {
+        if (PILOTING_ANIMATIONS.length == 1) {
+            return PILOTING_ANIMATIONS[0];
+        }
+        int idx = 0;
+        do {
+            System.out.println(idx);
+            idx = random.nextInt(PILOTING_ANIMATIONS.length);
+        } while (idx == lastPilotIndex);
+        lastPilotIndex = idx;
+        return PILOTING_ANIMATIONS[idx];
+    }
+
+    private void switchTo(AnimationDefinition def, int tickCount) {
+        currentDef = def;
+        switchTick = tickCount;
+   /*     state.stop();
+        state.start(tickCount);*/
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
-    public void setupAnim(T entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
-
-        if(!PILOTING_STATE.isStarted()){
-            PILOTING_STATE.start(Minecraft.getInstance().player.tickCount);
-        }
+    public void setupAnim(T entity, float limbSwing, float limbSwingAmount,
+                          float ageInTicks, float netHeadYaw, float headPitch) {
 
         young = false;
-///*
-//
-//        // Reset body entirely — don't touch it
-//        this.body.xRot = 0;
-//        this.body.yRot = 0;
-//        this.body.zRot = 0;
-//
-//        // Smooth sin waves at low frequency for fluid motion
-//        float slowSin = (float) Math.sin(ageInTicks * 0.03F);
-//        float slowCos = (float) Math.cos(ageInTicks * 0.025F);
-//
-//        // Arms gripping console — smooth subtle sway, no jitter
-//        this.leftArm.xRot  = (float) Math.toRadians(-60) + slowSin * 0.03F;
-//        this.leftArm.zRot  = (float) Math.toRadians(15)  + slowCos * 0.02F;
-//
-//        this.rightArm.xRot = (float) Math.toRadians(-60) + slowCos * 0.03F;
-//        this.rightArm.zRot = (float) Math.toRadians(-15) - slowSin * 0.02F;
-//
-//        // Head slowly looking around the console, slight downward tilt
-//        this.head.xRot = (float) Math.toRadians(20) + slowSin * 0.04F;
-//        this.head.yRot = slowCos * 0.06F;
-//
-//        // Lock legs
-//        this.leftLeg.xRot  = 0;
-//        this.leftLeg.yRot  = 0;
-//        this.leftLeg.zRot  = 0;
-//        this.rightLeg.xRot = 0;
-//        this.rightLeg.yRot = 0;
-//        this.rightLeg.zRot = 0;
-//
-//        this.leftPants.copyFrom(this.leftLeg);
-//        this.rightPants.copyFrom(this.rightLeg);
-//        this.leftSleeve.copyFrom(this.leftArm);
-//        this.rightSleeve.copyFrom(this.rightArm);
-//        this.jacket.copyFrom(this.body);
-//        this.hat.copyFrom(this.head);
-//*/
 
-        animate(PILOTING_STATE, PILOTING, Minecraft.getInstance().player.tickCount, 1);
+        int tickCount = Minecraft.getInstance().player.tickCount;
+        TardisClientData tardisClientData =
+                TardisClientData.getInstance(Minecraft.getInstance().level.dimension());
+        boolean hasFuel = tardisClientData.getFuel() > 0;
+
+        // ── First-time init ────────────────────────────────────────────────────
+        if (currentDef == null) {
+            switchTo(hasFuel ? pickNextPilotAnimation() : PANIC, tickCount);
+        }
+
+        // ── Instant switch into PANIC the moment fuel runs out ─────────────────
+        if (!hasFuel && currentDef != PANIC) {
+            switchTo(PANIC, tickCount);
+        }
+        // ── Instant switch out of PANIC the moment fuel returns ────────────────
+        else if (hasFuel && currentDef == PANIC) {
+            switchTo(pickNextPilotAnimation(), tickCount);
+        }
+
+        if (!state.isStarted()) {
+            state.start(tickCount);
+        }
+
+        // ── Rotate to a new random pilot clip once the current one finishes ────
+        // Compare against real game ticks, not render frames, so this only
+        // fires once the animation has actually had time to play out.
+        if (currentDef != PANIC && (tickCount - switchTick) >= holdTicksFor(currentDef)) {
+            switchTo(pickNextPilotAnimation(), tickCount);
+        }
+
+        animate(state, currentDef, tickCount, 1f);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public ModelPart root() {

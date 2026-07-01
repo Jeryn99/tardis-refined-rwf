@@ -3,6 +3,7 @@ package dev.jeryn.mc.rwf.client;
 import com.bulletphysics.linearmath.Transform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import dev.jeryn.mc.rwf.common.TardisPhysics;
 import dev.jeryn.mc.rwf.common.entity.TardisEntity;
@@ -17,7 +18,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.GlowSquid;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix3f;
@@ -145,6 +149,53 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         return entry == null ? null : entry.getShellModel(pattern);
     }
 
+    /* ---------------- SHIELD VFX ---------------- */
+
+    private static final float SHIELD_SCALE = 1.08F;
+
+    private void renderShield(TardisEntity entity, ShellPattern pattern, ShellModel shell,
+                              GlobalShellBlockEntity dummy, float partialTick,
+                              PoseStack poseStack, MultiBufferSource multiBufferSource, int packedLight) {
+
+        float maxShield = entity.getMaxShield();
+        if (maxShield <= 0F) return;
+
+        float shieldPct = entity.getShield() / maxShield;
+        if (shieldPct <= 0F) return;
+
+        float age = entity.tickCount + partialTick;
+
+        // layered sine flicker so it doesn't read as a simple pulse
+        float flicker = 0.65F
+                + 0.20F * (float) Math.sin(age * 0.5F)
+                + 0.15F * (float) Math.sin(age * 1.7F + 1.3F);
+
+        flicker = Math.max(0.0F, Math.min(1.0F, flicker));
+
+        // shield gets noisier/dimmer as it depletes, brighter and steadier near full charge
+        float alpha = (0.18F + 0.32F * flicker) * shieldPct;
+
+        if (alpha <= 0.01F) return;
+
+        float r = 0.15F;
+        float g = 0.65F;
+        float b = 1.0F;
+
+        poseStack.pushPose();
+        poseStack.scale(SHIELD_SCALE, SHIELD_SCALE, SHIELD_SCALE);
+
+        ResourceLocation emissive = shell.getShellTexture(pattern, true);
+        ResourceLocation base = shell.getShellTexture(pattern, false);
+        ResourceLocation shieldTexture = emissive != null ? emissive : base;
+
+        shell.renderShell(dummy, entity.isOpen(), false, poseStack,
+                multiBufferSource.getBuffer(RenderType.entityTranslucentEmissive(base)),
+                LightTexture.pack(15, 15),
+                NO_OVERLAY, r, g, b, alpha);
+
+        poseStack.popPose();
+    }
+
     private void renderDebugText(TardisEntity entity, boolean isFreefalling, float[] activeMatrix,
                                  PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         Minecraft mc = Minecraft.getInstance();
@@ -259,10 +310,13 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         GlobalShellBlockEntity dummy = ShellSelectionScreen.GLOBALSHELL_BLOCKENTITY;
         dummy.setTardisId(entity.getTardisDimension());
 
+        Entity controllingPlayer = entity.getVehicle();
+
+        if (controllingPlayer == null) return;
+
+
         poseStack.pushPose();
         poseStack.translate(0, .5, 0);
-
-        Entity controllingPlayer = entity.getVehicle();
 
 
         float age = entity.tickCount + partialTick;
@@ -273,7 +327,6 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
                 .map(ClientFlightData::isFreefalling)
                 .orElse(false);
 
-        assert controllingPlayer != null;
         if (!entity.onGround() && !isFreefalling) {
             renderParticles(entity);
         }
@@ -310,6 +363,9 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
                 double offsetX = Math.cos(angle) * radius;
                 double offsetZ = Math.sin(angle) * radius;
 
+                float drift = (float)Math.sin(age * 0.03F) * 2F;
+                poseStack.mulPose(Axis.ZP.rotationDegrees(drift));
+
                 poseStack.translate(
                         playerPos.x + offsetX - entity.getX(),
                         playerPos.y + 0.2 - entity.getY(),
@@ -331,18 +387,40 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
                 packedLight, NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
 
         ShellTheme theme = entity.getShellTheme();
-        if (theme != null && theme.producesLight()) {
-            ResourceLocation emissive = shell.getShellTexture(pattern, true);
-            shell.renderShell(dummy, entity.isOpen(), false, poseStack,
-                    multiBufferSource.getBuffer(RenderType.entityTranslucentEmissive(emissive)),
-                    LightTexture.pack(15, this.getSkyLightLevel(entity, entity.blockPosition())),
-                    NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
-        }
+
+        ResourceLocation emissive = shell.getShellTexture(pattern, true);
+
+        VertexConsumer buffer = multiBufferSource.getBuffer(
+                RenderType.entityTranslucent(emissive)
+        );
+
+// clamp lighting so it stays bright but still shaded
+        int block = (int) Math.max(8, entity.getLightLevelDependentMagicValue());
+        int sky = Math.max(8, entity.level().getBrightness(LightLayer.SKY, entity.blockPosition()));
+        int light = LightTexture.pack(block, sky);
+
+        shell.renderShell(
+                dummy,
+                entity.isOpen(),
+                false,
+                poseStack,
+                buffer,
+                light,
+                NO_OVERLAY,
+                1.0F, 1.0F, 1.0F, 1.0F
+        );
+
+  //      renderShield(entity, pattern, shell, dummy, partialTick, poseStack, multiBufferSource, packedLight);
 
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         poseStack.popPose();
 
         renderDebugText(entity, isFreefalling, activeMatrix, poseStack, multiBufferSource, packedLight);
+    }
+
+    @Override
+    protected int getBlockLightLevel(TardisEntity tardis, BlockPos blockPos) {
+        return 15;
     }
 
     @Override
