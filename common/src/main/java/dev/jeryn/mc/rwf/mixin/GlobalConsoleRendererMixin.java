@@ -2,7 +2,6 @@ package dev.jeryn.mc.rwf.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.jeryn.mc.rwf.client.ConsolePilotRenderer;
-import dev.jeryn.mc.rwf.client.ConsolePilotRendererOld;
 import net.minecraft.client.renderer.MultiBufferSource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
