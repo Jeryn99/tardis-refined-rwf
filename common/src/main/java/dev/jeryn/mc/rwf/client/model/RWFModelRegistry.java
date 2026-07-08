@@ -23,7 +23,7 @@ public class RWFModelRegistry {
     }
 
     public static void init() {
-        System.out.println("I AM LOADING UP MODELS SIR");
+
     }
 
     @ExpectPlatform

@@ -18,9 +18,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.GlowSquid;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -188,11 +186,13 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         ResourceLocation base = shell.getShellTexture(pattern, false);
         ResourceLocation shieldTexture = emissive != null ? emissive : base;
 
+        shell.setIgnoreAnmationAlpha(true);
+
         shell.renderShell(dummy, entity.isOpen(), false, poseStack,
                 multiBufferSource.getBuffer(RenderType.entityTranslucentEmissive(base)),
                 LightTexture.pack(15, 15),
                 NO_OVERLAY, r, g, b, alpha);
-
+        shell.setIgnoreAnmationAlpha(false);
         poseStack.popPose();
     }
 
@@ -202,6 +202,7 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         if (mc.getEntityRenderDispatcher().shouldRenderHitBoxes()) {
 
             List<String> lines = new ArrayList<>();
+            lines.add(String.format("§eRECOVERY§f " + entity.getRecoveryTicks()));
 
             Vec3 pos = entity.position();
             lines.add(String.format("§ePOS §f%.2f  %.2f  %.2f", pos.x, pos.y, pos.z));
@@ -248,6 +249,7 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
                         data.originDimension().location().getPath(),
                         data.originPos().x, data.originPos().y, data.originPos().z));
             });
+
 
             float lineHeight = 0.25F;
             float totalHeight = 1.2F + lines.size() * lineHeight;
@@ -382,9 +384,14 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         poseStack.mulPose(Axis.XP.rotationDegrees(180));
 
         ResourceLocation texture = shell.getShellTexture(pattern, false);
+
+        shell.setIgnoreAnmationAlpha(true);
+        float wave = entity.getRecoveryTicks() == 0 ? 1 :  (float) ((Math.sin(System.nanoTime() * 0.000000005) + 1.0) * 0.5);
         shell.renderShell(dummy, entity.isOpen(), true, poseStack,
                 multiBufferSource.getBuffer(RenderType.entityTranslucent(texture)),
-                packedLight, NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
+                packedLight, NO_OVERLAY, 1.0F, 1.0F, 1.0F, wave);
+
+        shell.setIgnoreAnmationAlpha(false);
 
         ShellTheme theme = entity.getShellTheme();
 

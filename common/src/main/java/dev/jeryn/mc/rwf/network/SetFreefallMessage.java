@@ -41,6 +41,10 @@ public class SetFreefallMessage extends MessageC2S {
         ServerPlayer player = context.getPlayer();
         if (!(player.getFirstPassenger() instanceof TardisEntity tardis)) return;
 
+        if (tardis.physicsMatrix != null) {
+            tardis.setRecoveryTicks(40);
+        }
+
         FlightTracker.updateFreefall(tardis.getTardisDimension(), isFreefalling, player.server);
     }
 }

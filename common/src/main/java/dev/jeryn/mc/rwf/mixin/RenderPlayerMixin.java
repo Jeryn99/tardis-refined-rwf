@@ -16,6 +16,7 @@ public class RenderPlayerMixin {
     @Inject(at = @At("HEAD"), cancellable = true, method = "render(Lnet/minecraft/client/player/AbstractClientPlayer;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V")
     private void stopPlayerRendering(AbstractClientPlayer abstractClientPlayer, float f, float g, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, CallbackInfo ci) {
         if (abstractClientPlayer.getFirstPassenger() instanceof TardisEntity) {
+
             ci.cancel();
         }
     }

@@ -1,7 +1,9 @@
 package dev.jeryn.mc.rwf.mixin;
 
+import dev.jeryn.mc.rwf.RWFAnimationStateAccessor;
 import dev.jeryn.mc.rwf.client.ClientFlightTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,15 +25,14 @@ public class TardisClientLogicMixin {
         if (level == null) return;
 
         boolean rwfFlying = ClientFlightTracker.isFlying(level.dimension());
+        AnimationState animState = ((RWFAnimationStateAccessor) tardisClientData).rwf$getAnimState();
 
-        // Only act if TR's own isFlying() disagrees with our tracker,
-        // so we don't double-start or double-stop anything TR already handled.
-        if (rwfFlying && !tardisClientData.isFlying()) {
-            if (!tardisClientData.ROTOR_ANIMATION.isStarted()) {
-                tardisClientData.ROTOR_ANIMATION.start(0);
+        if (rwfFlying) {
+            if (!animState.isStarted()) {
+                animState.start(0);
             }
-        } else if (!rwfFlying && tardisClientData.isFlying()) {
-            // TR thinks it's flying but we don't — leave TR in control, do nothing
+        } else {
+            animState.stop();
         }
     }
 }

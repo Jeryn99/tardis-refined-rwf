@@ -66,7 +66,6 @@ public class ConsolePilotModel<T extends LivingEntity> extends HierarchicalModel
         }
         int idx = 0;
         do {
-            System.out.println(idx);
             idx = random.nextInt(PILOTING_ANIMATIONS.length);
         } while (idx == lastPilotIndex);
         lastPilotIndex = idx;

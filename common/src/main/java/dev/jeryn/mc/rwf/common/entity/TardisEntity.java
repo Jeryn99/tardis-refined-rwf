@@ -63,6 +63,9 @@ public class TardisEntity extends Entity {
     public static final EntityDataAccessor<Float> SHIELD =
             SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.FLOAT);
 
+    public static final EntityDataAccessor<Integer> RECOVERY_TICKS =
+            SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.INT);
+
     /* ---------------- SHIELD CONFIG ---------------- */
 
     public static final float MAX_SHIELD = 100.0F;
@@ -81,15 +84,28 @@ public class TardisEntity extends Entity {
     private Vec3 last = new Vec3(0,0,0);
 
 
-    private float lastMovementFactor = 0.0F;
-
-    public float getLastMovementFactor() {
-        return lastMovementFactor;
+    public void writePhysToNBT(CompoundTag tag) {
+        if (physicsMatrix != null) {
+            int[] encoded = new int[physicsMatrix.length];
+            for (int i = 0; i < physicsMatrix.length; i++) {
+                encoded[i] = Float.floatToIntBits(physicsMatrix[i]);
+            }
+            tag.putIntArray("physicsMatrix", encoded);
+        }
     }
 
-    public void setLastMovementFactor(float value) {
-        this.lastMovementFactor = value;
+    public void readPhysFromNBT(CompoundTag tag) {
+        if (tag.contains("physicsMatrix")) {
+            int[] encoded = tag.getIntArray("physicsMatrix");
+            physicsMatrix = new float[encoded.length];
+            for (int i = 0; i < encoded.length; i++) {
+                physicsMatrix[i] = Float.intBitsToFloat(encoded[i]);
+            }
+        } else {
+            physicsMatrix = null;
+        }
     }
+
 
     public TardisEntity(EntityType<TardisEntity> entityType, Level level) {
         super(entityType, level);
@@ -247,6 +263,9 @@ public class TardisEntity extends Entity {
 
         regenShield();
 
+        if(getRecoveryTicks() > 0){
+            setRecoveryTicks(getRecoveryTicks() - 1);
+        }
 
         if (isPassenger()) {
 
@@ -281,6 +300,7 @@ public class TardisEntity extends Entity {
                 op.getPilotingManager().setCurrentLocation(new TardisNavLocation(this.blockPosition(), Direction.NORTH, this.level().dimension()));
                 collisionTeleport(controllingPlayer, op);
                 syncFromData(serverLevel, op);
+
 
                 float reduction = 0f;
 
@@ -357,6 +377,14 @@ public class TardisEntity extends Entity {
 
     public void setShellTheme(ResourceLocation rl) {
         getEntityData().set(SHELL_THEME, rl.toString());
+    }
+
+    public void setRecoveryTicks(int ticks) {
+        getEntityData().set(RECOVERY_TICKS, ticks);
+    }
+
+    public Integer getRecoveryTicks() {
+        return getEntityData().get(RECOVERY_TICKS);
     }
 
     /* ---------------- CORE DAMAGE ---------------- */
@@ -651,14 +679,19 @@ public class TardisEntity extends Entity {
         entityData.define(SHELL_THEME, ShellTheme.FACTORY.getId().toString());
         entityData.define(SHELL_PATTERN, "tardis_refined:default");
         entityData.define(DOOR, false);
+        entityData.define(RECOVERY_TICKS, 0);
         entityData.define(SHIELD, MAX_SHIELD);
     }
+
+
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
         setShellTheme(new ResourceLocation(tag.getString("shell_theme")));
         setDoorOpen(tag.getBoolean("open"));
         setShield(tag.contains("shield") ? tag.getFloat("shield") : MAX_SHIELD);
+        setRecoveryTicks(tag.getInt("recovery_ticks"));
+        readPhysFromNBT(tag);
     }
 
     /* ---------------- FORCE MOUNT ---------------- */
@@ -668,6 +701,8 @@ public class TardisEntity extends Entity {
         tag.putString("shell_theme", getShellThemeId().toString());
         tag.putBoolean("open", isOpen());
         tag.putFloat("shield", getShield());
+        tag.putInt("recovery_ticks", getRecoveryTicks());
+        writePhysToNBT(tag);
     }
 
     @Override

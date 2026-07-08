@@ -355,8 +355,6 @@ public class TardisPhysics {
     private static void onWallCollision(Vector3f normal, float impulse, Player player, TardisEntity tardis) {
         //  if (impulse < 5f) return;
 
-        System.out.println("wall hit!");
-
       /*  float now = (float) clock.getTimeMicroseconds() / 1_000_000.0F;
         if (now - lastWallHitTime < WALL_HIT_COOLDOWN) return;
         lastWallHitTime = now;*/
@@ -417,7 +415,6 @@ public class TardisPhysics {
                     vx, vy, vz
             );
         }
-        System.out.println(severity);
         // heavier hits get a burst of smoke too, for weight
        // if (severity > 0.5f) {
             int smokeCount = (int) (severity * 6);
