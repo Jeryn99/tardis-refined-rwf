@@ -60,25 +60,9 @@ public class TardisEntity extends Entity {
             SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.STRING);
     public static final EntityDataAccessor<Boolean> DOOR =
             SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.BOOLEAN);
-    public static final EntityDataAccessor<Float> SHIELD =
-            SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.FLOAT);
 
     public static final EntityDataAccessor<Integer> RECOVERY_TICKS =
             SynchedEntityData.defineId(TardisEntity.class, EntityDataSerializers.INT);
-
-    /* ---------------- SHIELD CONFIG ---------------- */
-
-    public static final float MAX_SHIELD = 100.0F;
-    // how much shield damage 1 unit of "collision speed" force translates to
-    private static final float COLLISION_SHIELD_DAMAGE_SCALE = 14.0F;
-    // how much shield damage 1 unit of block-impact "speed" translates to
-    private static final float BLOCK_IMPACT_SHIELD_DAMAGE_SCALE = 0.6F;
-    // ticks of no shield damage before passive regen kicks back in
-    private static final int SHIELD_REGEN_DELAY_TICKS = 100; // 5 seconds
-    // shield points restored per tick once regen is active
-    private static final float SHIELD_REGEN_PER_TICK = 0.25F; // ~5/sec
-
-    private int lastShieldHitTick = Integer.MIN_VALUE;
 
     public float[] physicsMatrix = null;
     private Vec3 last = new Vec3(0,0,0);
@@ -261,8 +245,6 @@ public class TardisEntity extends Entity {
 
         if (!(level() instanceof ServerLevel serverLevel)) return;
 
-        regenShield();
-
         if(getRecoveryTicks() > 0){
             setRecoveryTicks(getRecoveryTicks() - 1);
         }
@@ -300,7 +282,6 @@ public class TardisEntity extends Entity {
                 op.getPilotingManager().setCurrentLocation(new TardisNavLocation(this.blockPosition(), Direction.NORTH, this.level().dimension()));
                 collisionTeleport(controllingPlayer, op);
                 syncFromData(serverLevel, op);
-
 
                 float reduction = 0f;
 
@@ -428,8 +409,6 @@ public class TardisEntity extends Entity {
         Vec3 motion = pilot.getDeltaMovement();
         double speed = motion.length() * 23;
 
-        damageShield((float) (speed * BLOCK_IMPACT_SHIELD_DAMAGE_SCALE));
-
         //    if (!pilot.isSprinting()) return;
         //   if (speed < 0.25D) return;
 
@@ -556,12 +535,15 @@ public class TardisEntity extends Entity {
 
     private void collisionDamage(Entity pilot, ServerLevel level) {
 
+        // Only apply crash damage/knockback when the pilot has actually hit something.
+        // Previously this fired on speed alone, so every fast flight tick one-shot
+        // any nearby mob even with no contact at all.
+        if (!(pilot.horizontalCollision || pilot.verticalCollision)) return;
+
         Vec3 motion = pilot.getDeltaMovement();
         double speed = motion.length();
 
         if (speed < 0.4D) return;
-
-        damageShield((float) (speed * COLLISION_SHIELD_DAMAGE_SCALE));
 
         Vec3 dir = motion.normalize();
 
@@ -609,56 +591,6 @@ public class TardisEntity extends Entity {
         getEntityData().set(DOOR, open);
     }
 
-    /* ---------------- SHIELD ---------------- */
-
-    public float getShield() {
-        return getEntityData().get(SHIELD);
-    }
-
-    public float getMaxShield() {
-        return MAX_SHIELD;
-    }
-
-    public void setShield(float value) {
-        getEntityData().set(SHIELD, Math.max(0F, Math.min(MAX_SHIELD, value)));
-    }
-
-    public boolean isShieldDepleted() {
-        return getShield() <= 0F;
-    }
-
-    /**
-     * Drains the shield by the given amount. Returns any amount that
-     * "overflowed" past 0 shield, i.e. unabsorbed damage, so callers can
-     * decide later whether that should bleed through to the Tardis or pilot.
-     */
-    public float damageShield(float amount) {
-        if (amount <= 0F) {
-            return 0F;
-        }
-
-        float current = getShield();
-        float remaining = current - amount;
-        float overflow = remaining < 0F ? -remaining : 0F;
-
-        setShield(Math.max(0F, remaining));
-        lastShieldHitTick = tickCount;
-
-        return overflow;
-    }
-
-    private void regenShield() {
-        if (getShield() >= MAX_SHIELD) {
-            return;
-        }
-
-        if (tickCount - lastShieldHitTick < SHIELD_REGEN_DELAY_TICKS) {
-            return;
-        }
-
-        setShield(getShield() + SHIELD_REGEN_PER_TICK);
-    }
-
     public ResourceLocation getShellThemeId() {
         return new ResourceLocation(getEntityData().get(SHELL_THEME));
     }
@@ -680,7 +612,6 @@ public class TardisEntity extends Entity {
         entityData.define(SHELL_PATTERN, "tardis_refined:default");
         entityData.define(DOOR, false);
         entityData.define(RECOVERY_TICKS, 0);
-        entityData.define(SHIELD, MAX_SHIELD);
     }
 
 
@@ -689,7 +620,6 @@ public class TardisEntity extends Entity {
     protected void readAdditionalSaveData(CompoundTag tag) {
         setShellTheme(new ResourceLocation(tag.getString("shell_theme")));
         setDoorOpen(tag.getBoolean("open"));
-        setShield(tag.contains("shield") ? tag.getFloat("shield") : MAX_SHIELD);
         setRecoveryTicks(tag.getInt("recovery_ticks"));
         readPhysFromNBT(tag);
     }
@@ -700,7 +630,6 @@ public class TardisEntity extends Entity {
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putString("shell_theme", getShellThemeId().toString());
         tag.putBoolean("open", isOpen());
-        tag.putFloat("shield", getShield());
         tag.putInt("recovery_ticks", getRecoveryTicks());
         writePhysToNBT(tag);
     }

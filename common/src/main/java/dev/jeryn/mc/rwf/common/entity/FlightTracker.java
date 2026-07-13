@@ -71,11 +71,12 @@ public class FlightTracker {
         FlightData existing = IN_FLIGHT.get(key);
         if (existing == null) return;
 
-        FlightData updated = new FlightData(
-                existing.tardis(),
-                existing.player(),
-                isFreefalling
-        );
+        // Preserve the original take-off dimension/pos/rotation. Re-running the
+        // main constructor here would re-capture those from the player's CURRENT
+        // (mid-flight) position, silently corrupting the return location every
+        // time freefall is toggled - this was the cause of players sometimes
+        // landing back in the wrong dimension.
+        FlightData updated = existing.withFreefalling(isFreefalling);
         IN_FLIGHT.put(key, updated);
         broadcastSync(server);
     }
@@ -115,6 +116,27 @@ public class FlightTracker {
             this.originYaw = serverPlayer.getYRot();
             this.originPitch = serverPlayer.getXRot();
             this.isFreefalling = isFreefalling;
+        }
+
+        private FlightData(TardisEntity tardis, ServerPlayer player, ResourceKey<Level> originDimension,
+                            Vec3 originPos, float originYaw, float originPitch, boolean isFreefalling) {
+            this.tardis = tardis;
+            this.player = player;
+            this.originDimension = originDimension;
+            this.originPos = originPos;
+            this.originYaw = originYaw;
+            this.originPitch = originPitch;
+            this.isFreefalling = isFreefalling;
+        }
+
+        /**
+         * Returns a copy of this FlightData with only the freefall flag changed.
+         * Use this instead of the main constructor when updating in-flight state,
+         * so the original take-off dimension/position/rotation are never recomputed
+         * from the player's current (mid-flight) position.
+         */
+        public FlightData withFreefalling(boolean isFreefalling) {
+            return new FlightData(tardis, player, originDimension, originPos, originYaw, originPitch, isFreefalling);
         }
 
         public TardisEntity tardis() {

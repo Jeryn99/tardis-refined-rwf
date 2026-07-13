@@ -3,3 +3,4 @@ accessible method net/minecraft/world/entity/LivingEntity getJumpPower ()F
 accessible method net/minecraft/world/entity/Entity addPassenger (Lnet/minecraft/world/entity/Entity;)V
 accessible method net/minecraft/world/entity/Entity removePassenger (Lnet/minecraft/world/entity/Entity;)V
 accessible field net/minecraft/world/entity/Entity vehicle Lnet/minecraft/world/entity/Entity;
+accessible method net/minecraft/client/renderer/GameRenderer getFov (Lnet/minecraft/client/Camera;FZ)D

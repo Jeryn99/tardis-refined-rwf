@@ -16,8 +16,10 @@ public class RWFEnglishLang extends LanguageProvider {
         add("key.tardis_refined_rwf.exit_flight", "End Flight");
         add("key.categories.tardis_refined_rwf", "Tardis Refined - Real World Flight");
 
-        add("upgrade.tardis_refined_rwf.flight_overhaul", "Flight Control System");
-        add("upgrade.tardis_refined_rwf.flight_overhaul.description", "Unlocks TARDIS flight control systems.");
+        add("upgrade.tardis_refined_rwf.flight_unlock", "Flight Control System");
+        add("upgrade.tardis_refined_rwf.flight_unlock.description", "Unlocks TARDIS flight control systems.");
+
+        add("message.tardis_refined_rwf.flight_locked", "You need the Flight Control System upgrade before you can fly!");
 
         add("upgrade.tardis_refined_rwf.flight_efficiency_1", "Fuel Efficiency I");
         add("upgrade.tardis_refined_rwf.flight_efficiency_1.description", "Slightly improves fuel consumption during flight.");

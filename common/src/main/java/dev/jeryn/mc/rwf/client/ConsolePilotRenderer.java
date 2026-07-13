@@ -102,15 +102,14 @@ public class ConsolePilotRenderer {
         poseStack.translate(0.0F, 0F, -2);
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
 
-        //GameProfile gameProfile = getOrCreateProfile(pilot);
-        ResourceLocation skinTexture = getPlayerSkin(Minecraft.getInstance().player.getGameProfile());
+        PlayerInfo playerInfo = mc.getConnection() != null ? mc.getConnection().getPlayerInfo(pilot) : null;
+        ResourceLocation skinTexture = getPlayerSkin(playerInfo != null ? playerInfo.getProfile() : null);
 
         VertexConsumer innerConsumer = bufferSource.getBuffer(RenderType.entityTranslucent(skinTexture));
         model.renderToBuffer(poseStack, innerConsumer, packedLight, OverlayTexture.NO_OVERLAY, 1F, 1F, 1F, 1F);
 
         // ── Name tag ──────────────────────────────────────────────────────────────
         if (!mc.options.hideGui) {
-            PlayerInfo playerInfo = mc.getConnection() != null ? mc.getConnection().getPlayerInfo(pilot) : null;
             String playerName = playerInfo != null ? playerInfo.getProfile().getName() : "";
             String name = !playerName.isEmpty() ? playerName : pilot.toString();
 

@@ -2,9 +2,7 @@ package dev.jeryn.mc.rwf.mixin;
 
 import dev.jeryn.mc.rwf.RWFAnimationStateAccessor;
 import dev.jeryn.mc.rwf.client.ClientFlightTracker;
-import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.AnimationState;
-import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,10 +19,7 @@ public class TardisClientLogicMixin {
             remap = false
     )
     private static void rwf$onUpdate(TardisClientData tardisClientData, CallbackInfo ci) {
-        Level level = Minecraft.getInstance().level;
-        if (level == null) return;
-
-        boolean rwfFlying = ClientFlightTracker.isFlying(level.dimension());
+        boolean rwfFlying = ClientFlightTracker.isFlying(tardisClientData.getLevelKey());
         AnimationState animState = ((RWFAnimationStateAccessor) tardisClientData).rwf$getAnimState();
 
         if (rwfFlying) {

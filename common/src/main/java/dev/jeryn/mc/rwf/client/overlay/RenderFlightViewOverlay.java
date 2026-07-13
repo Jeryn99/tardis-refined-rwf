@@ -3,6 +3,7 @@ package dev.jeryn.mc.rwf.client.overlay;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import dev.jeryn.mc.rwf.common.TardisPhysics;
 import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -10,6 +11,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.world.phys.Vec3;
 import whocraft.tardis_refined.client.TardisClientData;
 
 public class RenderFlightViewOverlay {
@@ -45,11 +47,16 @@ public class RenderFlightViewOverlay {
         renderCoordPanel(gui, font);
         renderPilot(gui, font, w, h);
         renderFuel(gui, font, w, h);
+        renderHeat(gui, font, w, h);
+        renderHeading(gui, font, player, w);
 
         renderSymbol(gui, LEFT, cx - 240, h - 40, player.tickCount);
         renderSymbol(gui, RIGHT, cx + 220, h - 40, -player.tickCount);
 
-        renderVortex(gui, w / 2, h);    }
+        renderVortex(gui, w / 2, h);
+
+        renderImpactFlash(gui, w, h);
+    }
 
     static void updateDanger(LocalPlayer player) {
         float target = 0.0f;
@@ -90,6 +97,11 @@ public class RenderFlightViewOverlay {
         gui.drawString(f, "X " + Math.round(player.getX()), x, y, c);
         gui.drawString(f, "Y " + Math.round(player.getY()), x, y + 10, c);
         gui.drawString(f, "Z " + Math.round(player.getZ()), x, y + 20, c);
+
+        Vec3 vel = player.getDeltaMovement();
+        double speed = vel.length() * 20.0D; // blocks/tick -> approx blocks/sec
+
+        gui.drawString(f, "SPD " + String.format("%.1f", speed) + " b/s", x, y + 30, c);
     }
 
     static void renderPilot(GuiGraphics gui, Font f, int w, int h) {
@@ -123,8 +135,61 @@ public class RenderFlightViewOverlay {
             int fuel = (int) tardisClientData.getFuel();
             int percent = (int) ((fuel / 1000.0f) * 100.0f);
 
-            gui.drawString(f, "FUEL: " + percent + "%", x, y, color);
+            boolean low = percent <= 20;
+            boolean blink = (player.tickCount / 8) % 2 == 0;
+
+            int fuelColor = (low && blink) ? 0xFF3333 : color;
+
+            gui.drawString(f, "FUEL: " + percent + "%", x, y, fuelColor);
+
+            if (low && blink) {
+                gui.drawString(f, "LOW FUEL", x, y - 10, 0xFF3333);
+            }
         }
+    }
+
+    /* ---------------- SYSTEMS PANEL (heat) ---------------- */
+
+    static void renderHeat(GuiGraphics gui, Font f, int w, int h) {
+        int barW = 70;
+        int barH = 4;
+        int x = w - 20 - barW;
+        int y = 20;
+
+        float heat = TardisPhysics.heat;
+        int heatRgb = heat > 0.7F ? 0xFF4433 : (heat > 0.35F ? 0xFFAA33 : 0x88FFCC);
+
+        gui.drawString(f, "ENGINE HEAT", x, y, heatRgb);
+        gui.fill(x, y + 10, x + barW, y + 10 + barH, 0x55202020);
+        gui.fill(x, y + 10, x + Math.max(1, (int) (barW * heat)), y + 10 + barH, 0xFF000000 | heatRgb);
+    }
+
+    /* ---------------- HEADING ---------------- */
+
+    static void renderHeading(GuiGraphics gui, Font f, LocalPlayer player, int w) {
+        float yaw = ((player.getYRot() % 360F) + 360F) % 360F;
+        String[] dirs = {"S", "SW", "W", "NW", "N", "NE", "E", "SE"};
+        int index = Math.round(yaw / 45F) % 8;
+
+        String text = dirs[index] + "  " + Math.round(yaw) + "°";
+        int tw = f.width(text);
+        gui.drawString(f, text, w / 2 - tw / 2, 4, 0x88FFCC);
+    }
+
+    /* ---------------- IMPACT FLASH ---------------- */
+
+    static void renderImpactFlash(GuiGraphics gui, int w, int h) {
+        float flash = TardisPhysics.impactFlash;
+        if (flash <= 0.02F) return;
+
+        int alpha = (int) Math.min(140, flash * 160);
+        int color = (alpha << 24) | 0xFF2222;
+
+        int edge = 40;
+        gui.fill(0, 0, w, edge, color);
+        gui.fill(0, h - edge, w, h, color);
+        gui.fill(0, 0, edge, h, color);
+        gui.fill(w - edge, 0, w, h, color);
     }
 
     static void renderCorners(GuiGraphics gui, int w, int h) {

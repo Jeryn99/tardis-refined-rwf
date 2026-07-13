@@ -2,10 +2,13 @@ package dev.jeryn.mc.rwf.network;
 
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;
 import dev.jeryn.mc.rwf.common.entity.TardisEntity;
+import dev.jeryn.mc.rwf.common.upgrade.RWFUpgrades;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
+import whocraft.tardis_refined.common.capability.tardis.TardisLevelOperator;
 import whocraft.tardis_refined.common.network.MessageC2S;
 import whocraft.tardis_refined.common.network.MessageContext;
 import whocraft.tardis_refined.common.network.MessageType;
@@ -34,6 +37,18 @@ public class StartRWFMessage extends MessageC2S {
         ServerPlayer player = messageContext.getPlayer();
         if(player.level() instanceof ServerLevel serverLevel){
             if(!FlightTracker.isFlying(serverLevel.dimension())) {
+
+
+                boolean unlocked = TardisLevelOperator.get(serverLevel)
+                        .map(op -> op.getUpgradeHandler().isUpgradeUnlocked(RWFUpgrades.FLIGHT_UNLOCK.get()))
+                        .orElse(false);
+
+                if (!unlocked) {
+                    player.displayClientMessage(
+                            Component.translatable("message.tardis_refined_rwf.flight_locked"), true);
+                    return;
+                }
+
                 TardisEntity.createTardis(serverLevel, player);
             }
         }

@@ -40,6 +40,8 @@ public class TardisPhysics {
     private static final Map<String, RigidBody> blockColliders = new HashMap<>();
     public static boolean clientSideFreeFall = false;
     public static float heat = 0.0f;
+    public static float turbulence = 0.0f;
+    public static float impactFlash = 0.0f;
     public static DynamicsWorld dynamicsWorld = null;
     public static RigidBody tardis_rigid_body = null;
     private static BroadphaseInterface overlappingPairCache = null;
@@ -78,6 +80,8 @@ public class TardisPhysics {
         physicsTick = 0;
         clientSideFreeFall = false;
         heat = 0f;
+        turbulence = 0f;
+        impactFlash = 0f;
     }
 
     public static void onClientTick() {
@@ -98,6 +102,8 @@ public class TardisPhysics {
         }
 
         ensurePhysicsReady();
+
+        impactFlash *= 0.90f;
 
         TardisClientData tardisClientData = TardisClientData.getInstance(tardis.getTardisDimension());
 
@@ -232,6 +238,26 @@ public class TardisPhysics {
             heat *= 0.98f;
         }
 
+        // ---- Ambient turbulence: wind gusts that ramp in with altitude and go quiet near the ground/underwater ----
+        turbulence = Math.max(0f, Math.min(1f, ((float) player.getY() - 80f) / 220f));
+
+        if (turbulence > 0f && !water) {
+            float t = tardis.tickCount * 0.05f;
+            float gustX = (float) Math.sin(t * 0.9f) * 0.6f + (float) (Math.random() - 0.5) * 0.5f;
+            float gustY = (float) Math.sin(t * 0.6f + 1.7f) * 0.2f;
+            float gustZ = (float) Math.cos(t * 0.8f + 0.6f) * 0.6f + (float) (Math.random() - 0.5) * 0.5f;
+
+            Vector3f wind = new Vector3f(gustX, gustY, gustZ);
+            wind.scale(turbulence * 3.5f);
+            tardis_rigid_body.applyCentralForce(wind);
+
+            Vector3f windTorque = new Vector3f(gustZ, 0f, -gustX);
+            windTorque.scale(turbulence * 0.4f);
+            tardis_rigid_body.applyTorque(windTorque);
+        } else {
+            turbulence = 0f;
+        }
+
         tardis_rigid_body.setDamping(
                 0.02f + heat * 0.08f,
                 0.05f + heat * 0.15f
@@ -363,6 +389,7 @@ public class TardisPhysics {
         float severity = Math.min(1.0f, impulse / 60f); // tune 60f against your typical hit magnitudes
 
         heat = Math.min(1.0f, heat + impulse * 0.002f);
+        impactFlash = Math.min(1.0f, impactFlash + severity);
 
         // --- punchy bounce off the wall instead of just absorbing the hit ---
         if (tardis_rigid_body != null) {

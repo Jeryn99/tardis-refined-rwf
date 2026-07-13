@@ -25,14 +25,13 @@ public class FlyingSound extends LoopingTardisInteriorSound {
     public void playSoundInstance(Player player) {
 
 
-        if(sound.getLocation().getPath().contains("alarm")) {
+        Entity entity = player.getFirstPassenger();
+
+        if (sound.getLocation().getPath().contains("alarm")) {
             this.setLocation(player.position());
-            Entity entity = player.getFirstPassenger();
 
             if (entity instanceof TardisEntity tardis) {
                 TardisClientData tardisClientData = TardisClientData.getInstance(tardis.getTardisDimension());
-
-                System.out.println(tardisClientData.getFuel());
 
                 int fuel = (int) tardisClientData.getFuel();
 
@@ -49,35 +48,36 @@ public class FlyingSound extends LoopingTardisInteriorSound {
                 if(isFreefalling){
                     setVolume(0);
                 }
-
             }
+        }
 
-            if(sound.getLocation().getPath().contains("fly")) {
-                this.setLocation(player.position());
+        // Previously this whole block was nested inside the "alarm" check above, so it
+        // could never actually run for the flying-engine sound instance (its path never
+        // contains "alarm") — the speed-reactive engine volume was permanently dead code.
+        if (sound.getLocation().getPath().contains("fly")) {
+            this.setLocation(player.position());
 
-                Vec3 vel = player.getDeltaMovement();
-                float speed = (float) Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+            Vec3 vel = player.getDeltaMovement();
+            float speed = (float) Math.sqrt(vel.x * vel.x + vel.z * vel.z);
 
-                smoothed = smoothed * 0.85F + speed * 0.15F;
+            smoothed = smoothed * 0.85F + speed * 0.15F;
 
-                float idle = 0.15F;
-                float movement = Mth.clamp(smoothed * 2.5F, 0.0F, 0.6F);
+            float idle = 0.15F;
+            float movement = Mth.clamp(smoothed * 2.5F, 0.0F, 0.6F);
 
-                float volume = idle + movement;
+            float volume = idle + movement;
 
-                setVolume(Mth.clamp(volume, 0.15F, 0.75F));
+            setVolume(Mth.clamp(volume, 0.15F, 0.75F));
 
-                if (entity instanceof TardisEntity tardis) {
-                    boolean isFreefalling = ClientFlightTracker.get(tardis.getTardisDimension())
-                            .map(ClientFlightData::isFreefalling)
-                            .orElse(false);
+            if (entity instanceof TardisEntity tardis) {
+                boolean isFreefalling = ClientFlightTracker.get(tardis.getTardisDimension())
+                        .map(ClientFlightData::isFreefalling)
+                        .orElse(false);
 
-                    if(isFreefalling){
-                        setVolume(0);
-                    }
+                if(isFreefalling){
+                    setVolume(0);
                 }
             }
-
         }
     }
 

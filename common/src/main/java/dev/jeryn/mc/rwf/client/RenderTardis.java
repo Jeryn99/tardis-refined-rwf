@@ -147,55 +147,6 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         return entry == null ? null : entry.getShellModel(pattern);
     }
 
-    /* ---------------- SHIELD VFX ---------------- */
-
-    private static final float SHIELD_SCALE = 1.08F;
-
-    private void renderShield(TardisEntity entity, ShellPattern pattern, ShellModel shell,
-                              GlobalShellBlockEntity dummy, float partialTick,
-                              PoseStack poseStack, MultiBufferSource multiBufferSource, int packedLight) {
-
-        float maxShield = entity.getMaxShield();
-        if (maxShield <= 0F) return;
-
-        float shieldPct = entity.getShield() / maxShield;
-        if (shieldPct <= 0F) return;
-
-        float age = entity.tickCount + partialTick;
-
-        // layered sine flicker so it doesn't read as a simple pulse
-        float flicker = 0.65F
-                + 0.20F * (float) Math.sin(age * 0.5F)
-                + 0.15F * (float) Math.sin(age * 1.7F + 1.3F);
-
-        flicker = Math.max(0.0F, Math.min(1.0F, flicker));
-
-        // shield gets noisier/dimmer as it depletes, brighter and steadier near full charge
-        float alpha = (0.18F + 0.32F * flicker) * shieldPct;
-
-        if (alpha <= 0.01F) return;
-
-        float r = 0.15F;
-        float g = 0.65F;
-        float b = 1.0F;
-
-        poseStack.pushPose();
-        poseStack.scale(SHIELD_SCALE, SHIELD_SCALE, SHIELD_SCALE);
-
-        ResourceLocation emissive = shell.getShellTexture(pattern, true);
-        ResourceLocation base = shell.getShellTexture(pattern, false);
-        ResourceLocation shieldTexture = emissive != null ? emissive : base;
-
-        shell.setIgnoreAnmationAlpha(true);
-
-        shell.renderShell(dummy, entity.isOpen(), false, poseStack,
-                multiBufferSource.getBuffer(RenderType.entityTranslucentEmissive(base)),
-                LightTexture.pack(15, 15),
-                NO_OVERLAY, r, g, b, alpha);
-        shell.setIgnoreAnmationAlpha(false);
-        poseStack.popPose();
-    }
-
     private void renderDebugText(TardisEntity entity, boolean isFreefalling, float[] activeMatrix,
                                  PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         Minecraft mc = Minecraft.getInstance();
@@ -289,8 +240,6 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
                         .color(0, 0, 0, 80)
                         .uv2(packedLight)
                         .endVertex();
-
-                entity.setCustomName(text);
 
                 font.drawInBatch(text, x, y, 0xFFFFFF, false, matrix, buffer, Font.DisplayMode.NORMAL, 0, packedLight);
             }
@@ -416,8 +365,6 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
                 NO_OVERLAY,
                 1.0F, 1.0F, 1.0F, 1.0F
         );
-
-  //      renderShield(entity, pattern, shell, dummy, partialTick, poseStack, multiBufferSource, packedLight);
 
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         poseStack.popPose();
