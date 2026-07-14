@@ -10,9 +10,7 @@ import java.util.function.Supplier;
 
 public class RWFModelRegistry {
 
-
     public static ModelLayerLocation PILOT = player("pilot");
-
 
     private static ModelLayerLocation player(String name) {
         return createLocation(name, "player");

@@ -1,7 +1,6 @@
 package dev.jeryn.mc.rwf.network;
 
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -12,7 +11,6 @@ import whocraft.tardis_refined.common.network.MessageType;
 public class SetFreefallMessage extends MessageC2S {
 
     private boolean isFreefalling;
-
 
     public SetFreefallMessage() {
     }
@@ -39,12 +37,9 @@ public class SetFreefallMessage extends MessageC2S {
     @Override
     public void handle(MessageContext context) {
         ServerPlayer player = context.getPlayer();
-        if (!(player.getFirstPassenger() instanceof TardisEntity tardis)) return;
+        var tardisDim = FlightTracker.getTardisDimensionFor(player.getUUID());
+        if (tardisDim == null) return;
 
-        if (tardis.physicsMatrix != null) {
-            tardis.setRecoveryTicks(40);
-        }
-
-        FlightTracker.updateFreefall(tardis.getTardisDimension(), isFreefalling, player.server);
+        FlightTracker.updateFreefall(tardisDim, isFreefalling, player.server);
     }
 }

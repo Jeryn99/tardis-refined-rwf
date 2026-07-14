@@ -4,7 +4,7 @@ public class AnimController {
 
     private Anim current = Anim.PILOTING;
     private Anim previous = Anim.PILOTING;
-    private float blendWeight = 1f;   // 0 = fully previous, 1 = fully current
+    private float blendWeight = 1f;
     private float blendDuration = 10f;  // ticks to complete a blend
     private float blendProgress = 0f;
 

@@ -1,7 +1,6 @@
 package dev.jeryn.mc.rwf.client;
 
 import dev.jeryn.mc.rwf.client.sound.FlyingSound;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
@@ -32,7 +31,9 @@ public class FlightModeClient {
 
         Options options = mc.options;
 
-        if (player.getFirstPassenger() instanceof TardisEntity tardis) {
+        var flightData = ClientFlightTracker.getForPlayer(player.getUUID()).orElse(null);
+
+        if (flightData != null) {
 
             if (!savedSettings) {
                 previousCameraType = options.getCameraType();
@@ -43,7 +44,9 @@ public class FlightModeClient {
             options.setCameraType(CameraType.THIRD_PERSON_BACK);
             options.fov().set(90);
 
-            if (!soundManager.isActive(TARDIS_SINGLE_FLYING)) {
+            if (flightData.isFreefalling()) {
+                soundManager.stop(TARDIS_SINGLE_FLYING);
+            } else if (!soundManager.isActive(TARDIS_SINGLE_FLYING)) {
                 soundManager.play(
                         TARDIS_SINGLE_FLYING
                                 .setPlayer(player)
@@ -51,9 +54,7 @@ public class FlightModeClient {
                 );
             }
 
-            // This alarm previously played constantly for the entire flight instead of
-            // only when fuel actually ran low - it never checked the fuel level at all.
-            TardisClientData tardisClientData = TardisClientData.getInstance(tardis.getTardisDimension());
+            TardisClientData tardisClientData = TardisClientData.getInstance(flightData.tardisDimension());
             boolean lowFuel = (tardisClientData.getFuel() / 1000.0f) <= 0.20f;
 
             if (lowFuel) {

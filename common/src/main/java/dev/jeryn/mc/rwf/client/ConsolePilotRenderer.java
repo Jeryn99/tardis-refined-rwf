@@ -35,11 +35,8 @@ public class ConsolePilotRenderer {
 
     private static ConsolePilotModel<?> pilotModel;
 
-    // Cached immutable list of parts for the pilot model, built once instead of every frame.
     private static List<ModelPart> pilotModelParts;
 
-    // How long cached profiles/skins are trusted before we re-fetch. Keeps the common case
-    // (same pilot flying for a while) cheap while still picking up skin/name changes eventually.
     private static final long PROFILE_CACHE_TTL_MS = TimeUnit.MINUTES.toMillis(5);
     private static final long SKIN_CACHE_TTL_MS = TimeUnit.MINUTES.toMillis(5);
 
@@ -49,8 +46,6 @@ public class ConsolePilotRenderer {
         }
     }
 
-    // GameProfile lookups (SkullBlockEntity.updateGameprofile) kick off async work and are
-    // relatively expensive; there's no reason to redo them every frame for the same pilot.
     private static final Map<UUID, CachedValue<GameProfile>> profileCache = new ConcurrentHashMap<>();
 
     public static void init(EntityModelSet modelSet) {
@@ -179,8 +174,6 @@ public class ConsolePilotRenderer {
         }
 
         GameProfile gameProfile = new GameProfile(pilot, "");
-        // Store a placeholder immediately (with a fresh timestamp) so concurrent calls this
-        // frame/next frame don't all fire their own lookups while we wait on the async result.
         profileCache.put(pilot, new CachedValue<>(gameProfile, System.currentTimeMillis()));
 
         SkullBlockEntity.updateGameprofile(gameProfile, profile -> {
@@ -209,7 +202,7 @@ public class ConsolePilotRenderer {
                         skinCache.put(uuid, new CachedValue<>(location, System.currentTimeMillis()));
                     }
                 },
-                true // requireSecure - set false if you want offline/insecure skins too
+                true
         );
     }
 

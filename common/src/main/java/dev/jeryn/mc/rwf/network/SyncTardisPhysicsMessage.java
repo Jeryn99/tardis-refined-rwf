@@ -1,6 +1,6 @@
 package dev.jeryn.mc.rwf.network;
 
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
+import dev.jeryn.mc.rwf.common.entity.FlightTracker;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -42,13 +42,11 @@ public class SyncTardisPhysicsMessage extends MessageC2S {
     @Override
     public void handle(MessageContext context) {
         ServerPlayer pilot = context.getPlayer();
-        if (!(pilot.getFirstPassenger() instanceof TardisEntity tardis)) return;
-
-        tardis.setPos(position);
+        if (!FlightTracker.isPlayerFlying(pilot.getUUID())) return;
 
         for (ServerPlayer player : pilot.server.getPlayerList().getPlayers()) {
             if (pilot.getUUID() == player.getUUID()) continue;
-            new TardisPhysicsUpdateMessage(position, matrix, tardis.getId())
+            new TardisPhysicsUpdateMessage(position, matrix, pilot.getUUID())
                     .send(player);
         }
     }

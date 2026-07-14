@@ -17,4 +17,10 @@ public class RWFKeyMappings {
             "key.categories.tardis_refined_rwf"
     );
 
+    public static final KeyMapping LOCAL_HOP = new KeyMapping(
+            "key.tardis_refined_rwf.local_hop",
+            GLFW.GLFW_KEY_R,
+            "key.categories.tardis_refined_rwf"
+    );
+
 }

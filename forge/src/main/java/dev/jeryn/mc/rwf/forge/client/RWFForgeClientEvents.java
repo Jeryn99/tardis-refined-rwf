@@ -2,13 +2,14 @@ package dev.jeryn.mc.rwf.forge.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.jeryn.mc.rwf.RealWorldFlight;
+import dev.jeryn.mc.rwf.client.ClientUtil;
 import dev.jeryn.mc.rwf.client.FlightModeClient;
 import dev.jeryn.mc.rwf.client.RWFKeyMappings;
 import dev.jeryn.mc.rwf.client.model.RWFModelRegistry;
 import dev.jeryn.mc.rwf.client.model.forge.RWFModelRegistryImpl;
+import dev.jeryn.mc.rwf.client.ClientFlightTracker;
 import dev.jeryn.mc.rwf.common.TardisPhysics;
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import dev.jeryn.mc.rwf.network.RWFOpenDoor;
 import dev.jeryn.mc.rwf.network.StopRWFMessage;
 import net.minecraft.client.Minecraft;
@@ -55,7 +56,6 @@ public class RWFForgeClientEvents {
         RWFModelRegistryImpl.register(event);
     }
 
-
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
@@ -76,10 +76,9 @@ public class RWFForgeClientEvents {
             lastOpened = currentTime;
         }
 
-        // Exit flight on the (rebindable) keybind, default TAB.
         while (RWFKeyMappings.EXIT_FLIGHT.consumeClick()) {
             if (Minecraft.getInstance().player != null
-                    && Minecraft.getInstance().player.getFirstPassenger() instanceof TardisEntity) {
+                    && ClientFlightTracker.getForPlayer(Minecraft.getInstance().player.getUUID()).isPresent()) {
                 new StopRWFMessage(false).send();
             }
         }
@@ -87,8 +86,11 @@ public class RWFForgeClientEvents {
         while (RWFKeyMappings.FREE_FALL.consumeClick()) {
             TardisPhysics.toggleFreefall();
         }
-    }
 
+        while (RWFKeyMappings.LOCAL_HOP.consumeClick()) {
+            ClientUtil.attemptLocalHop();
+        }
+    }
 
     @SubscribeEvent
     public static void onClientTick(TickEvent event) {

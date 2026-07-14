@@ -14,7 +14,10 @@ import com.bulletphysics.linearmath.Clock;
 import com.bulletphysics.linearmath.DefaultMotionState;
 import com.bulletphysics.linearmath.Transform;
 import dev.jeryn.mc.rwf.client.BulletDebugDraw;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
+import dev.jeryn.mc.rwf.client.ClientFlightData;
+import dev.jeryn.mc.rwf.client.ClientFlightTracker;
+import dev.jeryn.mc.rwf.common.weather.TornadoThreat;
+import dev.jeryn.mc.rwf.common.weather.WeatherHooks;
 import dev.jeryn.mc.rwf.network.SetFreefallMessage;
 import dev.jeryn.mc.rwf.network.SyncTardisPhysicsMessage;
 import net.minecraft.client.Minecraft;
@@ -36,12 +39,20 @@ public class TardisPhysics {
     private static final Clock clock = new Clock();
     private static final BoxShape UNIT_BOX =
             new BoxShape(new Vector3f(0.5F, 0.5F, 0.5F));
-    // Replace the collisionsAdded list with a map that holds the rigid body too
+
     private static final Map<String, RigidBody> blockColliders = new HashMap<>();
     public static boolean clientSideFreeFall = false;
     public static float heat = 0.0f;
     public static float turbulence = 0.0f;
     public static float impactFlash = 0.0f;
+
+    public static float stormDanger = 0.0f;
+
+    private static final double TORNADO_QUERY_RANGE = 200.0;
+
+    private static final float TORNADO_FREEFALL_INTENSITY = 0.35f;
+    private static final double TORNADO_FREEFALL_RANGE = 60.0;
+
     public static DynamicsWorld dynamicsWorld = null;
     public static RigidBody tardis_rigid_body = null;
     private static BroadphaseInterface overlappingPairCache = null;
@@ -82,21 +93,16 @@ public class TardisPhysics {
         heat = 0f;
         turbulence = 0f;
         impactFlash = 0f;
+        stormDanger = 0f;
     }
 
     public static void onClientTick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null || mc.isPaused()) return;
 
-        TardisEntity tardis = null;
-        for (var p : mc.player.getPassengers()) {
-            if (p instanceof TardisEntity te) {
-                tardis = te;
-                break;
-            }
-        }
+        ClientFlightData flightData = ClientFlightTracker.getForPlayer(mc.player.getUUID()).orElse(null);
 
-        if (tardis == null) {
+        if (flightData == null) {
             if (dynamicsWorld != null) resetPhysics();
             return;
         }
@@ -105,7 +111,7 @@ public class TardisPhysics {
 
         impactFlash *= 0.90f;
 
-        TardisClientData tardisClientData = TardisClientData.getInstance(tardis.getTardisDimension());
+        TardisClientData tardisClientData = TardisClientData.getInstance(flightData.tardisDimension());
 
         boolean isCollided = mc.player.horizontalCollision || mc.player.verticalCollision;
         boolean isFlying = mc.player.getAbilities().flying;
@@ -115,7 +121,6 @@ public class TardisPhysics {
             double y = mc.player.getY();
             double z = mc.player.getZ();
 
-            // Blue-ish "temporal energy" dust, scale controls particle size
             DustParticleOptions tardisDust = new DustParticleOptions(new org.joml.Vector3f(0.3F, 0.6F, 1.0F), 1.2F);
 
             mc.level.addParticle(ParticleTypes.LARGE_SMOKE, x, y + 1.0D, z, 0.2D, 1.0D, 0.0D);
@@ -131,12 +136,32 @@ public class TardisPhysics {
             new SetFreefallMessage(true).send();
         }
 
+         if (!clientSideFreeFall) {
+            TornadoThreat threat = WeatherHooks.get().getNearestTornadoThreat(
+                    mc.level, mc.player.position(), TORNADO_QUERY_RANGE);
+
+            if (threat != null
+                    && threat.intensity() >= TORNADO_FREEFALL_INTENSITY
+                    && threat.distance() <= TORNADO_FREEFALL_RANGE) {
+                clientSideFreeFall = true;
+                new SetFreefallMessage(true).send();
+            }
+        }
+
         if (clientSideFreeFall) {
-            tickFreefall(mc.player, tardis);
+            tickFreefall(mc.player);
+        } else {
+            applyAmbientWind(mc.player);
         }
     }
 
-    private static void tickFreefall(Player player, TardisEntity tardis) {
+    private static void applyAmbientWind(Player player) {
+        Vec3 wind = WeatherHooks.get().getWindForce(player.level(), player.blockPosition());
+        if (wind.equals(Vec3.ZERO)) return;
+        player.setDeltaMovement(player.getDeltaMovement().add(wind.scale(0.05)));
+    }
+
+    private static void tickFreefall(Player player) {
 
         float dt = (float) clock.getTimeMicroseconds() / 1_000_000.0F;
         clock.reset();
@@ -199,7 +224,6 @@ public class TardisPhysics {
             // stronger upward force when deeper
             float depth = Math.max(0f, (float) (waterLevel - player.getY()));
 
-            // target float height (slightly above current water surface)
             float targetY = waterLevel + 1.2f;
 
             float currentY = tardis_rigid_body.getWorldTransform(new Transform()).origin.y;
@@ -238,11 +262,48 @@ public class TardisPhysics {
             heat *= 0.98f;
         }
 
-        // ---- Ambient turbulence: wind gusts that ramp in with altitude and go quiet near the ground/underwater ----
+          TornadoThreat tornadoThreat = WeatherHooks.get().getNearestTornadoThreat(
+                player.level(), player.position(), TORNADO_QUERY_RANGE);
+
+        if (tornadoThreat != null) {
+            double dist = Math.max(1.0, tornadoThreat.distance());
+            float pull = tornadoThreat.intensity() * (float) Math.max(0.0, 1.0 - dist / TORNADO_QUERY_RANGE);
+
+            stormDanger = Math.max(stormDanger, pull);
+
+            if (pull > 0.02f) {
+                Transform bodyTransform = tardis_rigid_body.getWorldTransform(new Transform());
+                Vec3 bodyPos = new Vec3(bodyTransform.origin.x, bodyTransform.origin.y, bodyTransform.origin.z);
+
+                Vector3f linVel = tardis_rigid_body.getLinearVelocity(new Vector3f());
+                 Vec3 perTickMotion = new Vec3(linVel.x / 20.0, linVel.y / 20.0, linVel.z / 20.0);
+
+                Vec3 spunMotion = WeatherHooks.get().applyTornadoSpin(
+                        player.level(), bodyPos, perTickMotion, true, TORNADO_QUERY_RANGE);
+
+                tardis_rigid_body.setLinearVelocity(new Vector3f(
+                        (float) (spunMotion.x * 20.0),
+                        (float) (spunMotion.y * 20.0),
+                        (float) (spunMotion.z * 20.0)
+                ));
+
+                Vector3f spin = new Vector3f(
+                        (float) (Math.random() - 0.5) * pull * 3.0f,
+                        pull * 5.0f,
+                        (float) (Math.random() - 0.5) * pull * 3.0f
+                );
+                tardis_rigid_body.applyTorque(spin);
+
+                heat = Math.min(1.0f, heat + pull * 0.01f);
+            }
+        } else {
+            stormDanger *= 0.95f;
+        }
+
         turbulence = Math.max(0f, Math.min(1f, ((float) player.getY() - 80f) / 220f));
 
         if (turbulence > 0f && !water) {
-            float t = tardis.tickCount * 0.05f;
+            float t = player.tickCount * 0.05f;
             float gustX = (float) Math.sin(t * 0.9f) * 0.6f + (float) (Math.random() - 0.5) * 0.5f;
             float gustY = (float) Math.sin(t * 0.6f + 1.7f) * 0.2f;
             float gustZ = (float) Math.cos(t * 0.8f + 0.6f) * 0.6f + (float) (Math.random() - 0.5) * 0.5f;
@@ -281,18 +342,10 @@ public class TardisPhysics {
 
         dynamicsWorld.stepSimulation(dt, 5);
 
-        checkWallCollisions(player, tardis);
+        checkWallCollisions(player);
 
         Transform wt = new Transform();
         tardis_rigid_body.getWorldTransform(wt);
-
-        Quat4f q = new Quat4f();
-        wt.getRotation(q);
-
-        Vector3f euler = quatToEuler(q);
-
-        tardis.setYRot((float) Math.toDegrees(euler.y));
-        tardis.setXRot((float) Math.toDegrees(euler.x));
 
         double x = wt.origin.x;
         double y = wt.origin.y;
@@ -304,8 +357,6 @@ public class TardisPhysics {
         player.xOld = x;
         player.yOld = y;
         player.zOld = z;
-
-        tardis.setPos(x, y, z);
 
         tardis_rigid_body.getWorldTransform(wt);
         float[] matrix = new float[16];
@@ -341,9 +392,8 @@ public class TardisPhysics {
 
     }
 
-    private static void checkWallCollisions(Player player, TardisEntity tardis) {
+    private static void checkWallCollisions(Player player) {
         if (dynamicsWorld == null || tardis_rigid_body == null || dispatcher == null) return;
-
 
         int numManifolds = dispatcher.getNumManifolds();
         for (int i = 0; i < numManifolds; i++) {
@@ -368,7 +418,7 @@ public class TardisPhysics {
                 boolean isWall = horizontal > 0.6f && Math.abs(normal.y) < 0.4f;
 
                 if (isWall) {
-                    onWallCollision(normal, pt.appliedImpulse, player, tardis);
+                    onWallCollision(normal, pt.appliedImpulse, player);
                 }
             }
         }
@@ -378,20 +428,14 @@ public class TardisPhysics {
 
     private static final float WALL_HIT_COOLDOWN = 0.3f; // seconds, prevents scrape-spam
 
-    private static void onWallCollision(Vector3f normal, float impulse, Player player, TardisEntity tardis) {
+    private static void onWallCollision(Vector3f normal, float impulse, Player player) {
         //  if (impulse < 5f) return;
 
-      /*  float now = (float) clock.getTimeMicroseconds() / 1_000_000.0F;
-        if (now - lastWallHitTime < WALL_HIT_COOLDOWN) return;
-        lastWallHitTime = now;*/
-
-        // scale everything off impulse so a gentle scrape and a full-speed slam feel different
-        float severity = Math.min(1.0f, impulse / 60f); // tune 60f against your typical hit magnitudes
+        float severity = Math.min(1.0f, impulse / 60f);
 
         heat = Math.min(1.0f, heat + impulse * 0.002f);
         impactFlash = Math.min(1.0f, impactFlash + severity);
 
-        // --- punchy bounce off the wall instead of just absorbing the hit ---
         if (tardis_rigid_body != null) {
             Vector3f vel = tardis_rigid_body.getLinearVelocity(new Vector3f());
             float velAlongNormal = vel.dot(normal);
@@ -402,7 +446,6 @@ public class TardisPhysics {
                 tardis_rigid_body.setLinearVelocity(vel);
             }
 
-            // extra tumble on impact, direction biased by the wall normal (feels like a real crash)
             Vector3f crashTorque = new Vector3f(
                     normal.z * severity * 4f + (float) (Math.random() - 0.5) * severity * 2f,
                     (float) (Math.random() - 0.5) * severity * 3f,
@@ -411,14 +454,12 @@ public class TardisPhysics {
             tardis_rigid_body.applyTorque(crashTorque);
         }
 
-        // --- sparks at the impact point ---
         spawnWallImpactParticles(player, normal, severity);
     }
 
     private static void spawnWallImpactParticles(Player player, Vector3f normal, float severity) {
         var level = player.level();
 
-        // push the spawn point out from the player toward the wall, roughly chest height
         double originX = player.getX() + normal.x * 1.0;
         double originY = player.getY() + 1.0;
         double originZ = player.getZ() + normal.z * 1.0;
@@ -426,12 +467,10 @@ public class TardisPhysics {
         int count = 8 + (int) (severity * 16);
 
         for (int i = 0; i < count; i++) {
-            // scatter around the impact point, biased outward along the normal
             double ox = normal.x * 0.3 + (Math.random() - 0.5) * 0.6;
             double oy = (Math.random() - 0.5) * 0.8;
             double oz = normal.z * 0.3 + (Math.random() - 0.5) * 0.6;
 
-            // velocity kicks outward along the normal with some random scatter
             double vx = normal.x * (0.1 + Math.random() * 0.15 * severity);
             double vy = 0.05 + Math.random() * 0.1 * severity;
             double vz = normal.z * (0.1 + Math.random() * 0.15 * severity);
@@ -442,7 +481,6 @@ public class TardisPhysics {
                     vx, vy, vz
             );
         }
-        // heavier hits get a burst of smoke too, for weight
        // if (severity > 0.5f) {
             int smokeCount = (int) (severity * 6);
             for (int i = 0; i < smokeCount; i++) {
@@ -458,7 +496,6 @@ public class TardisPhysics {
          //   }
         }
 
-        // scorch-y flame flecks on the hardest hits, ties nicely into your heat system
      //   if (severity > 0.8f) {
             for (int i = 0; i < 4; i++) {
                 double ox = normal.x * 0.3 + (Math.random() - 0.5) * 0.3;
@@ -507,7 +544,6 @@ public class TardisPhysics {
             }
         }
 
-        // Remove colliders for blocks that no longer exist
         Iterator<Map.Entry<String, RigidBody>> it = blockColliders.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, RigidBody> entry = it.next();
@@ -536,7 +572,6 @@ public class TardisPhysics {
     public static void onExplosion(double ex, double ey, double ez, float power) {
         if (tardis_rigid_body == null || dynamicsWorld == null) return;
 
-        // Wake the body up — sleeping bodies ignore forces/impulses
         tardis_rigid_body.activate(true);
 
         Transform t = new Transform();

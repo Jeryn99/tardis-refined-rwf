@@ -1,6 +1,6 @@
 package dev.jeryn.mc.rwf.network;
 
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
+import dev.jeryn.mc.rwf.common.entity.FlightTracker;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -34,8 +34,8 @@ public class StopRWFMessage extends MessageC2S {
     @Override
     public void handle(MessageContext context) {
         ServerPlayer player = context.getPlayer();
-        if (player.getFirstPassenger() instanceof TardisEntity tardis) {
-            tardis.finishFlight(player.serverLevel(), isTransition);
+        if (FlightTracker.isPlayerFlying(player.getUUID())) {
+            FlightTracker.finishFlight(player, isTransition);
         }
     }
 }

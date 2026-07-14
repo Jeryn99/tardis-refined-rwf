@@ -2,10 +2,11 @@ package dev.jeryn.mc.rwf.fabric.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.jeryn.mc.rwf.common.TardisPhysics;
+import dev.jeryn.mc.rwf.client.ClientUtil;
 import dev.jeryn.mc.rwf.client.FlightModeClient;
 import dev.jeryn.mc.rwf.fabric.client.RWFKeyMappingsFabric;
+import dev.jeryn.mc.rwf.client.ClientFlightTracker;
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import dev.jeryn.mc.rwf.network.RWFOpenDoor;
 import dev.jeryn.mc.rwf.network.StopRWFMessage;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -58,13 +59,17 @@ public class RWFClientEvents {
 
             while (RWFKeyMappingsFabric.EXIT_FLIGHT.consumeClick()) {
                 if (client.player != null
-                        && client.player.getFirstPassenger() instanceof TardisEntity) {
+                        && ClientFlightTracker.getForPlayer(client.player.getUUID()).isPresent()) {
                     new StopRWFMessage(false).send();
                 }
             }
 
             while (RWFKeyMappingsFabric.FREE_FALL.consumeClick()) {
                 TardisPhysics.toggleFreefall();
+            }
+
+            while (RWFKeyMappingsFabric.LOCAL_HOP.consumeClick()) {
+                ClientUtil.attemptLocalHop();
             }
 
             TardisPhysics.onClientTick();

@@ -30,15 +30,6 @@ public class AnimationUtil {
         };
     }
 
-    /**
-     * Animates the given humanoid model based on the given animation definition, elapsed time, and weight.
-     *
-     * @param humanoidModel       the humanoid model to animate
-     * @param animationDefinition the animation definition to use for animating the model
-     * @param elapsedTime         the elapsed time, in milliseconds, since the animation started
-     * @param weight              the weight of the animation, which determines how much it should be applied to the model
-     * @param vec                 a vector that can be used to store temporary values while animating the model
-     */
     public static void animate(HumanoidModel<?> humanoidModel, AnimationDefinition animationDefinition, long elapsedTime, float weight, Vector3f vec) {
         float elapsedSeconds = getElapsedSeconds(animationDefinition, elapsedTime);
         for (Map.Entry<String, List<AnimationChannel>> entry : animationDefinition.boneAnimations().entrySet()) {
@@ -87,13 +78,6 @@ public class AnimationUtil {
         }
     }
 
-    /**
-     * Returns the elapsed seconds for a given animation definition and time.
-     *
-     * @param animationDefinition the animation definition
-     * @param time                the time in milliseconds
-     * @return the elapsed seconds
-     */
     private static float getElapsedSeconds(AnimationDefinition animationDefinition, long time) {
         float seconds = (float) time / 1000.0F;
         return animationDefinition.looping() ? seconds % animationDefinition.lengthInSeconds() : seconds;

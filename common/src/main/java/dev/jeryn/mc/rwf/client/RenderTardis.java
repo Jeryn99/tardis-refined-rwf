@@ -6,19 +6,19 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import dev.jeryn.mc.rwf.common.TardisPhysics;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -38,16 +38,56 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
 import static whocraft.tardis_refined.client.screen.main.MonitorOS.MonitorOSExtension.generateDummyGlobalShell;
 
-public class RenderTardis extends EntityRenderer<TardisEntity> {
+public class RenderTardis {
 
     private static final Map<ResourceLocation, Float> SEAT_CACHE = new HashMap<>();
 
-    public RenderTardis(EntityRendererProvider.Context context) {
-        super(context);
+    private static final Map<UUID, float[]> PHYSICS_MATRIX = new HashMap<>();
+
+    private static final Map<UUID, ResourceKey<Level>> LAST_DIMENSION = new HashMap<>();
+    private static final Map<UUID, Integer> TRANSITION_START_TICK = new HashMap<>();
+    private static final int TRANSITION_DURATION_TICKS = 20;
+
+    private RenderTardis() {
+    }
+
+    private static float dimensionTransitionAlpha(AbstractClientPlayer player, float partialTick) {
+        UUID uuid = player.getUUID();
+        ResourceKey<Level> currentDim = player.level().dimension();
+        ResourceKey<Level> lastDim = LAST_DIMENSION.put(uuid, currentDim);
+
+        if (lastDim != null && !lastDim.equals(currentDim)) {
+            TRANSITION_START_TICK.put(uuid, player.tickCount);
+        }
+
+        float dimensionAlpha = 1F;
+        Integer startTick = TRANSITION_START_TICK.get(uuid);
+        if (startTick != null) {
+            float elapsed = (player.tickCount - startTick) + partialTick;
+            if (elapsed >= TRANSITION_DURATION_TICKS) {
+                TRANSITION_START_TICK.remove(uuid);
+            } else {
+                float half = TRANSITION_DURATION_TICKS / 2F;
+                dimensionAlpha = Mth.clamp(
+                        elapsed < half ? 1F - (elapsed / half) : (elapsed - half) / half,
+                        0F, 1F);
+            }
+        }
+
+        return dimensionAlpha;
+    }
+
+    public static void setPhysicsMatrix(UUID pilot, float[] matrix) {
+        PHYSICS_MATRIX.put(pilot, matrix);
+    }
+
+    public static float[] getPhysicsMatrix(UUID pilot) {
+        return PHYSICS_MATRIX.get(pilot);
     }
 
     private static float seatFor(ResourceLocation themeId, ShellModel shell) {
@@ -73,7 +113,6 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         return seat;
     }
 
-
     private static float[] getLocalMatrix() {
         Transform t = new Transform();
         TardisPhysics.tardis_rigid_body.getWorldTransform(t);
@@ -82,10 +121,8 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         return m;
     }
 
-    private static void renderParticles(TardisEntity entity) {
-        Entity controllingPlayer = entity.getVehicle();
-        if(controllingPlayer == null) return;
-        BlockPos start = controllingPlayer.blockPosition();
+    private static void renderParticles(AbstractClientPlayer player) {
+        BlockPos start = player.blockPosition();
         BlockState ground = null;
         double surfaceY = 0;
 
@@ -93,7 +130,7 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
 
         for (int i = 0; i < 3; i++) {
             cursor.move(Direction.DOWN);
-            BlockState state = entity.level().getBlockState(cursor);
+            BlockState state = player.level().getBlockState(cursor);
 
             if (!state.isAir() && !state.canBeReplaced()) {
                 ground = state;
@@ -104,12 +141,12 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
 
         if (ground != null) {
 
-            double gap = controllingPlayer.getY() - surfaceY;
+            double gap = player.getY() - surfaceY;
             if (gap < 0.2D || gap > 2.5D) return;
 
-            double cx = entity.getX();
+            double cx = player.getX();
             double cy = surfaceY + 0.1D;
-            double cz = entity.getZ();
+            double cz = player.getZ();
 
             double radius = 1.5;
 
@@ -125,7 +162,7 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
 
                 double vy = 0.02;
 
-                entity.level().addParticle(
+                player.level().addParticle(
                         new net.minecraft.core.particles.BlockParticleOption(
                                 net.minecraft.core.particles.ParticleTypes.BLOCK, ground
                         ),
@@ -138,24 +175,24 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         }
     }
 
-    private ShellPattern getPattern(TardisEntity entity) {
-        return ShellPatterns.getPatternOrDefault(entity.getShellThemeId(), entity.getShellPatternId());
+    private static ShellPattern getPattern(ClientFlightData data) {
+        return ShellPatterns.getPatternOrDefault(data.shellTheme(), data.shellPattern());
     }
 
-    private ShellModel getModel(TardisEntity entity, ShellPattern pattern) {
-        ShellEntry entry = ShellModelCollection.getInstance().getShellEntry(entity.getShellThemeId());
+    private static ShellModel getModel(ClientFlightData data, ShellPattern pattern) {
+        ShellEntry entry = ShellModelCollection.getInstance().getShellEntry(data.shellTheme());
         return entry == null ? null : entry.getShellModel(pattern);
     }
 
-    private void renderDebugText(TardisEntity entity, boolean isFreefalling, float[] activeMatrix,
-                                 PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+    private static void renderDebugText(AbstractClientPlayer player, ClientFlightData data, boolean isFreefalling,
+                                         float[] activeMatrix, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getEntityRenderDispatcher().shouldRenderHitBoxes()) {
 
             List<String> lines = new ArrayList<>();
-            lines.add(String.format("§eRECOVERY§f " + entity.getRecoveryTicks()));
+            lines.add(String.format("§eRECOVERING§f " + data.isRecovering()));
 
-            Vec3 pos = entity.position();
+            Vec3 pos = player.position();
             lines.add(String.format("§ePOS §f%.2f  %.2f  %.2f", pos.x, pos.y, pos.z));
 
             lines.add(String.format("§eFREEFALL §f%s  §eHEAT §f%.3f",
@@ -188,19 +225,16 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
                 lines.add("§eRIGID BODY §cnull §7(non-pilot or inactive)");
             }
 
-            if (entity.physicsMatrix != null && TardisPhysics.tardis_rigid_body == null) {
-                float[] m = entity.physicsMatrix;
+            if (activeMatrix != null && TardisPhysics.tardis_rigid_body == null) {
+                float[] m = activeMatrix;
                 lines.add(String.format("§eMATRIX(0-2) §f%.2f  %.2f  %.2f", m[0], m[1], m[2]));
                 lines.add(String.format("§eMATRIX(4-6) §f%.2f  %.2f  %.2f", m[4], m[5], m[6]));
                 lines.add(String.format("§eMATRIX(8-10)§f%.2f  %.2f  %.2f", m[8], m[9], m[10]));
             }
 
-            ClientFlightTracker.get(entity.getTardisDimension()).ifPresent(data -> {
-                lines.add(String.format("§eorigin §f%s  %.1f %.1f %.1f",
-                        data.originDimension().location().getPath(),
-                        data.originPos().x, data.originPos().y, data.originPos().z));
-            });
-
+            lines.add(String.format("§eorigin §f%s  %.1f %.1f %.1f",
+                    data.originDimension().location().getPath(),
+                    data.originPos().x, data.originPos().y, data.originPos().z));
 
             float lineHeight = 0.25F;
             float totalHeight = 1.2F + lines.size() * lineHeight;
@@ -248,43 +282,36 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
         }
     }
 
-    @Override
-    public void render(TardisEntity entity, float yaw, float partialTick, PoseStack poseStack,
-                       MultiBufferSource multiBufferSource, int packedLight) {
-        super.render(entity, yaw, partialTick, poseStack, multiBufferSource, packedLight);
+    public static void renderShellForPlayer(AbstractClientPlayer player, float partialTick, PoseStack poseStack,
+                                             MultiBufferSource multiBufferSource, int packedLight) {
 
-        ShellPattern pattern = getPattern(entity);
-        ShellModel shell = getModel(entity, pattern);
+        ClientFlightData data = ClientFlightTracker.getForPlayer(player.getUUID()).orElse(null);
+        if (data == null) return;
+
+        ShellPattern pattern = getPattern(data);
+        ShellModel shell = getModel(data, pattern);
         if (shell == null) return;
 
         generateDummyGlobalShell();
         GlobalShellBlockEntity dummy = ShellSelectionScreen.GLOBALSHELL_BLOCKENTITY;
-        dummy.setTardisId(entity.getTardisDimension());
-
-        Entity controllingPlayer = entity.getVehicle();
-
-        if (controllingPlayer == null) return;
-
+        dummy.setTardisId(data.tardisDimension());
 
         poseStack.pushPose();
         poseStack.translate(0, .5, 0);
 
+        float age = player.tickCount + partialTick;
 
-        float age = entity.tickCount + partialTick;
+        seatFor(data.shellTheme(), shell);
 
-        float seat = seatFor(entity.getShellThemeId(), shell);
+        boolean isFreefalling = data.isFreefalling();
 
-        boolean isFreefalling = ClientFlightTracker.get(entity.getTardisDimension())
-                .map(ClientFlightData::isFreefalling)
-                .orElse(false);
-
-        if (!entity.onGround() && !isFreefalling) {
-            renderParticles(entity);
+        if (!player.onGround() && !isFreefalling) {
+            renderParticles(player);
         }
 
         float[] activeMatrix = (TardisPhysics.tardis_rigid_body != null)
                 ? getLocalMatrix()
-                : entity.physicsMatrix;
+                : getPhysicsMatrix(player.getUUID());
 
         if (isFreefalling && activeMatrix != null) {
             Matrix4f rotOnly = new Matrix4f(
@@ -298,33 +325,37 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
 
         } else {
 
-            if (controllingPlayer.onGround()) {
+            if (player.onGround()) {
                 poseStack.translate(0, 1, 0);
 
             } else {
                 poseStack.translate(0, 0.5, 0);
 
-                Vec3 playerPos = controllingPlayer.position();
-
                 float speed = 3.0F;
                 float radius = 0.5F;
 
-                float angle = (entity.tickCount + partialTick) * speed * 0.05F;
+                float angle = (player.tickCount + partialTick) * speed * 0.05F;
 
                 double offsetX = Math.cos(angle) * radius;
                 double offsetZ = Math.sin(angle) * radius;
 
-                float drift = (float)Math.sin(age * 0.03F) * 2F;
+                float drift = (float) Math.sin(age * 0.03F) * 2F;
                 poseStack.mulPose(Axis.ZP.rotationDegrees(drift));
 
-                poseStack.translate(
-                        playerPos.x + offsetX - entity.getX(),
-                        playerPos.y + 0.2 - entity.getY(),
-                        playerPos.z + offsetZ - entity.getZ()
-                );
+                poseStack.translate(offsetX, 0.2, offsetZ);
 
                 float yaw2 = (float) (-Math.atan2(offsetX, offsetZ) * (180F / Math.PI));
                 poseStack.mulPose(Axis.YP.rotationDegrees(yaw2));
+
+                float turnRate = Mth.wrapDegrees(player.getYRot() - player.yRotO);
+                float bank = Mth.clamp(turnRate * 1.5F, -25F, 25F);
+
+                Vec3 motion = player.getDeltaMovement();
+                float horizontalSpeed = (float) Math.sqrt(motion.x * motion.x + motion.z * motion.z);
+                float speedLean = Mth.clamp(horizontalSpeed * 40F, 0F, 15F);
+
+                poseStack.mulPose(Axis.ZP.rotationDegrees(bank));
+                poseStack.mulPose(Axis.XP.rotationDegrees(-speedLean));
 
                 poseStack.mulPose(Axis.ZP.rotationDegrees((float) Math.sin(angle) * 6F));
             }
@@ -334,15 +365,20 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
 
         ResourceLocation texture = shell.getShellTexture(pattern, false);
 
+        int block = 15;
+        int sky = Math.max(8, player.level().getBrightness(LightLayer.SKY, player.blockPosition()));
+        int shellLight = LightTexture.pack(block, sky);
+
         shell.setIgnoreAnmationAlpha(true);
-        float wave = entity.getRecoveryTicks() == 0 ? 1 :  (float) ((Math.sin(System.nanoTime() * 0.000000005) + 1.0) * 0.5);
-        shell.renderShell(dummy, entity.isOpen(), true, poseStack,
+        float wave = data.isRecovering() ? (float) ((Math.sin(System.nanoTime() * 0.000000005) + 1.0) * 0.5) : 1F;
+        float transitionAlpha = dimensionTransitionAlpha(player, partialTick);
+        shell.renderShell(dummy, data.doorOpen(), true, poseStack,
                 multiBufferSource.getBuffer(RenderType.entityTranslucent(texture)),
-                packedLight, NO_OVERLAY, 1.0F, 1.0F, 1.0F, wave);
+                shellLight, NO_OVERLAY, 1.0F, 1.0F, 1.0F, wave * transitionAlpha);
 
         shell.setIgnoreAnmationAlpha(false);
 
-        ShellTheme theme = entity.getShellTheme();
+        ShellTheme theme = ShellTheme.getShellTheme(data.shellTheme());
 
         ResourceLocation emissive = shell.getShellTexture(pattern, true);
 
@@ -350,39 +386,21 @@ public class RenderTardis extends EntityRenderer<TardisEntity> {
                 RenderType.entityTranslucent(emissive)
         );
 
-// clamp lighting so it stays bright but still shaded
-        int block = (int) Math.max(8, entity.getLightLevelDependentMagicValue());
-        int sky = Math.max(8, entity.level().getBrightness(LightLayer.SKY, entity.blockPosition()));
-        int light = LightTexture.pack(block, sky);
-
-        shell.renderShell(
-                dummy,
-                entity.isOpen(),
-                false,
-                poseStack,
-                buffer,
-                light,
-                NO_OVERLAY,
-                1.0F, 1.0F, 1.0F, 1.0F
-        );
-
+        if (theme.producesLight()) {
+            shell.renderShell(
+                    dummy,
+                    data.doorOpen(),
+                    false,
+                    poseStack,
+                    buffer,
+                    shellLight,
+                    NO_OVERLAY,
+                    1.0F, 1.0F, 1.0F, transitionAlpha
+            );
+        }
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         poseStack.popPose();
 
-        renderDebugText(entity, isFreefalling, activeMatrix, poseStack, multiBufferSource, packedLight);
-    }
-
-    @Override
-    protected int getBlockLightLevel(TardisEntity tardis, BlockPos blockPos) {
-        return 15;
-    }
-
-    @Override
-    public ResourceLocation getTextureLocation(TardisEntity entity) {
-        ShellPattern pattern = getPattern(entity);
-        ShellModel shell = getModel(entity, pattern);
-        return shell == null
-                ? ShellPatterns.DEFAULT.shellTexture().texture()
-                : shell.getShellTexture(pattern, false);
+        renderDebugText(player, data, isFreefalling, activeMatrix, poseStack, multiBufferSource, packedLight);
     }
 }

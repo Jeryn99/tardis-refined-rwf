@@ -3,6 +3,7 @@ package dev.jeryn.mc.rwf.client;
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -17,7 +18,11 @@ public record ClientFlightData(
         float originYaw,
         float originPitch,
         boolean isFreefalling,
-        UUID pilot
+        UUID pilot,
+        ResourceLocation shellTheme,
+        ResourceLocation shellPattern,
+        boolean doorOpen,
+        boolean isRecovering
 ) {
     public static ClientFlightData fromBytes(FriendlyByteBuf buf) {
         ResourceKey<Level> tardisDim = ResourceKey.create(DIMENSION, buf.readResourceLocation());
@@ -27,10 +32,16 @@ public record ClientFlightData(
         float originPitch = buf.readFloat();
         boolean isFreefalling = buf.readBoolean();
         UUID playerUUID = buf.readUUID();
-        return new ClientFlightData(tardisDim, originDim, originPos, originYaw, originPitch, isFreefalling, playerUUID);
+        ResourceLocation shellTheme = buf.readResourceLocation();
+        ResourceLocation shellPattern = buf.readResourceLocation();
+        boolean doorOpen = buf.readBoolean();
+        boolean isRecovering = buf.readBoolean();
+        return new ClientFlightData(tardisDim, originDim, originPos, originYaw, originPitch, isFreefalling,
+                playerUUID, shellTheme, shellPattern, doorOpen, isRecovering);
     }
 
     public static ClientFlightData from(FlightTracker.FlightData data, ResourceKey<Level> tardisDimension) {
+        FlightTracker.ShellState shell = data.shell();
         return new ClientFlightData(
                 tardisDimension,
                 data.originDimension(),
@@ -38,7 +49,11 @@ public record ClientFlightData(
                 data.originYaw(),
                 data.originPitch(),
                 data.isFreefalling(),
-                data.player().getUUID()
+                data.player().getUUID(),
+                shell.shellTheme,
+                shell.shellPattern,
+                shell.doorOpen,
+                shell.recoveryTicks > 0
         );
     }
 
@@ -52,5 +67,9 @@ public record ClientFlightData(
         buf.writeFloat(originPitch);
         buf.writeBoolean(isFreefalling);
         buf.writeUUID(pilot);
+        buf.writeResourceLocation(shellTheme);
+        buf.writeResourceLocation(shellPattern);
+        buf.writeBoolean(doorOpen);
+        buf.writeBoolean(isRecovering);
     }
 }

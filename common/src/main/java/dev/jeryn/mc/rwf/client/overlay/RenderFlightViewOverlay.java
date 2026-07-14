@@ -3,8 +3,9 @@ package dev.jeryn.mc.rwf.client.overlay;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import dev.jeryn.mc.rwf.client.ClientFlightData;
+import dev.jeryn.mc.rwf.client.ClientFlightTracker;
 import dev.jeryn.mc.rwf.common.TardisPhysics;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -22,14 +23,14 @@ public class RenderFlightViewOverlay {
 
     public static void renderAll(GuiGraphics gui) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || !(mc.player.getFirstPassenger() instanceof TardisEntity))
-            return;
+        if (mc.player == null) return;
 
         LocalPlayer player = mc.player;
 
-        if (!(player.getFirstPassenger() instanceof TardisEntity tardis)) return;
+        ClientFlightData flightData = ClientFlightTracker.getForPlayer(player.getUUID()).orElse(null);
+        if (flightData == null) return;
 
-        TardisClientData tardisClientData = TardisClientData.getInstance(tardis.getTardisDimension());
+        TardisClientData tardisClientData = TardisClientData.getInstance(flightData.tardisDimension());
 
         if (tardisClientData.isFlying()) return;
 
@@ -47,7 +48,8 @@ public class RenderFlightViewOverlay {
         renderCoordPanel(gui, font);
         renderPilot(gui, font, w, h);
         renderFuel(gui, font, w, h);
-        renderHeat(gui, font, w, h);
+        //renderHeat(gui, font, w, h);
+        renderStormWarning(gui, font, w, h);
         renderHeading(gui, font, player, w);
 
         renderSymbol(gui, LEFT, cx - 240, h - 40, player.tickCount);
@@ -72,7 +74,6 @@ public class RenderFlightViewOverlay {
 
         danger += (target - danger) * 0.08f;
     }
-
 
     static void renderSymbol(GuiGraphics gui, ResourceLocation tex, int x, int y, float rot) {
         if (tex == null) return;
@@ -129,8 +130,9 @@ public class RenderFlightViewOverlay {
         int color = danger > 0.5f ? 0xFF5555 : 0x66FFCC;
 
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player.getFirstPassenger() instanceof TardisEntity tardis) {
-            TardisClientData tardisClientData = TardisClientData.getInstance(tardis.getTardisDimension());
+        ClientFlightData flightData = ClientFlightTracker.getForPlayer(player.getUUID()).orElse(null);
+        if (flightData != null) {
+            TardisClientData tardisClientData = TardisClientData.getInstance(flightData.tardisDimension());
 
             int fuel = (int) tardisClientData.getFuel();
             int percent = (int) ((fuel / 1000.0f) * 100.0f);
@@ -162,6 +164,23 @@ public class RenderFlightViewOverlay {
         gui.drawString(f, "ENGINE HEAT", x, y, heatRgb);
         gui.fill(x, y + 10, x + barW, y + 10 + barH, 0x55202020);
         gui.fill(x, y + 10, x + Math.max(1, (int) (barW * heat)), y + 10 + barH, 0xFF000000 | heatRgb);
+    }
+
+    static void renderStormWarning(GuiGraphics gui, Font f, int w, int h) {
+        float stormDanger = TardisPhysics.stormDanger;
+        if (stormDanger <= 0.05F) return;
+
+        int barW = 70;
+        int barH = 4;
+        int x = w - 20 - barW;
+        int y = 34;
+
+        boolean blink = (Minecraft.getInstance().player.tickCount / 6) % 2 == 0;
+        int stormRgb = (stormDanger > 0.6F && blink) ? 0xFF3333 : 0xFFAA33;
+
+        gui.drawString(f, "TORNADO WARNING", x, y, stormRgb);
+        gui.fill(x, y + 10, x + barW, y + 10 + barH, 0x55202020);
+        gui.fill(x, y + 10, x + Math.max(1, (int) (barW * stormDanger)), y + 10 + barH, 0xFF000000 | stormRgb);
     }
 
     /* ---------------- HEADING ---------------- */

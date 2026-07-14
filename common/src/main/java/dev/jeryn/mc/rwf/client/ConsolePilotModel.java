@@ -38,14 +38,12 @@ public class ConsolePilotModel<T extends LivingEntity> extends HierarchicalModel
     // ── Model ─────────────────────────────────────────────────────────────────
     private final ModelPart root;
 
-    // ── Single active state — hard cuts, no blending ────────────────────────────
     private final AnimationState state = new AnimationState();
     private AnimationDefinition currentDef = null;
 
     private final Random random = new Random();
     private int lastPilotIndex = -1;
 
-    // Tick (not frame) at which the current animation started.
     private int switchTick = -1;
 
     public ConsolePilotModel(ModelPart modelPart) {
@@ -97,11 +95,9 @@ public class ConsolePilotModel<T extends LivingEntity> extends HierarchicalModel
             switchTo(hasFuel ? pickNextPilotAnimation() : PANIC, tickCount);
         }
 
-        // ── Instant switch into PANIC the moment fuel runs out ─────────────────
         if (!hasFuel && currentDef != PANIC) {
             switchTo(PANIC, tickCount);
         }
-        // ── Instant switch out of PANIC the moment fuel returns ────────────────
         else if (hasFuel && currentDef == PANIC) {
             switchTo(pickNextPilotAnimation(), tickCount);
         }
@@ -110,9 +106,6 @@ public class ConsolePilotModel<T extends LivingEntity> extends HierarchicalModel
             state.start(tickCount);
         }
 
-        // ── Rotate to a new random pilot clip once the current one finishes ────
-        // Compare against real game ticks, not render frames, so this only
-        // fires once the animation has actually had time to play out.
         if (currentDef != PANIC && (tickCount - switchTick) >= holdTicksFor(currentDef)) {
             switchTo(pickNextPilotAnimation(), tickCount);
         }

@@ -14,6 +14,7 @@ public class RWFEnglishLang extends LanguageProvider {
     protected void addTranslations() {
         add("key.tardis_refined_rwf.free_fall", "Freefall Toggle");
         add("key.tardis_refined_rwf.exit_flight", "End Flight");
+        add("key.tardis_refined_rwf.local_hop", "Local Hop");
         add("key.categories.tardis_refined_rwf", "Tardis Refined - Real World Flight");
 
         add("upgrade.tardis_refined_rwf.flight_unlock", "Flight Control System");

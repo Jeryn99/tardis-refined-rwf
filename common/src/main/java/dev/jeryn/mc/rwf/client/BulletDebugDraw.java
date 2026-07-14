@@ -39,15 +39,11 @@ public class BulletDebugDraw extends IDebugDraw {
 
     // ── Color helpers ─────────────────────────────────────────────────────────
 
-    /**
-     * Animated electric cyan/blue pulse based on line midpoint and time.
-     */
     private float[] wireframeColor(Vector3f from, Vector3f to) {
         float t = time();
         float mid = (from.x + from.y + from.z + to.x + to.y + to.z) * 0.05f;
         float wave = Mth.sin(t * 3.0f + mid) * 0.5f + 0.5f;
 
-        // Cycle between electric blue and cyan
         float r = 0.0f;
         float g = 0.6f + wave * 0.4f;
         float b = 1.0f;
@@ -65,12 +61,8 @@ public class BulletDebugDraw extends IDebugDraw {
         return new float[]{1.0f, wave * 0.2f, 1.0f - wave * 0.5f, 1.0f};
     }
 
-    /**
-     * AABB lines — warm amber/orange tint.
-     */
     private float[] aabbColor(Vector3f color) {
 
-        // If bullet passes a non-white color use it, else apply our tint
         boolean isDefault = color.x > 0.9f && color.y > 0.9f && color.z > 0.9f;
         if (!isDefault) {
             // Brighten whatever bullet gives us
@@ -93,7 +85,6 @@ public class BulletDebugDraw extends IDebugDraw {
 
         if (consumer == null) return;
 
-        // Draw the line twice offset slightly to fake thickness/glow
         for (int pass = 0; pass < 2; pass++) {
             float alpha = pass == 0 ? a : a * 0.35f;
             float offset = pass == 0 ? 0f : 0.015f;
@@ -116,19 +107,15 @@ public class BulletDebugDraw extends IDebugDraw {
 
         float[] c;
 
-        // Bullet uses specific colors to signal line type:
-        // red = X axis / contact, green = Y axis, blue = Z axis
         // white/grey = generic wireframe
         boolean isRed = color.x > 0.8f && color.y < 0.3f && color.z < 0.3f;
         boolean isGreen = color.y > 0.8f && color.x < 0.3f && color.z < 0.3f;
         boolean isBlue = color.z > 0.8f && color.x < 0.3f && color.y < 0.3f;
 
         if (isRed) {
-            // Remap X axis to hot pink
             float wave = Mth.sin(time() * 5f) * 0.5f + 0.5f;
             c = new float[]{1.0f, 0.1f + wave * 0.3f, 0.4f, 0.9f};
         } else if (isGreen) {
-            // Remap Y axis to electric lime
             c = new float[]{0.3f, 1.0f, 0.2f, 0.85f};
         } else if (isBlue) {
             // Remap Z axis to violet
@@ -152,7 +139,6 @@ public class BulletDebugDraw extends IDebugDraw {
         float[] c = contactColor();
         line(pointOnB, to, c[0], c[1], c[2], c[3]);
 
-        // Draw a small cross at the contact point
         float s = 0.12f;
         line(
                 new Vector3f(pointOnB.x - s, pointOnB.y, pointOnB.z),

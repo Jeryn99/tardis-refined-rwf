@@ -1,11 +1,12 @@
 package dev.jeryn.mc.rwf.network;
 
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 import whocraft.tardis_refined.common.capability.player.TardisPlayerInfo;
 import whocraft.tardis_refined.common.capability.tardis.TardisLevelOperator;
@@ -32,21 +33,22 @@ public class TransitionVortexMessage extends MessageC2S {
     public void handle(MessageContext context) {
         ServerPlayer player = context.getPlayer();
 
-        if (!(player.getFirstPassenger() instanceof TardisEntity tardis)) return;
+        ResourceKey<Level> tardisDimKey = FlightTracker.getTardisDimensionFor(player.getUUID());
+        if (tardisDimKey == null) return;
 
-        ServerLevel tardisDim = DimensionUtil.getLevel(tardis.getTardisDimension());
+        ServerLevel tardisDim = DimensionUtil.getLevel(tardisDimKey);
 
         TardisLevelOperator.get(tardisDim).ifPresent((tardisLevelOperator) -> {
             TardisPlayerInfo.get(context.getPlayer()).ifPresent((tardisInfo) -> {
                 tardisInfo.startShellView(
                         player,
                         tardisLevelOperator,
-                        new TardisNavLocation(player.blockPosition(), Direction.NORTH, tardis.level().dimension()),
+                        new TardisNavLocation(player.blockPosition(), Direction.NORTH, player.level().dimension()),
                         true
                 );
             });
         });
 
-        FlightTracker.stopFlying(tardis.getTardisDimension(), player.getServer());
+        FlightTracker.stopFlying(tardisDimKey, player.getServer());
     }
 }

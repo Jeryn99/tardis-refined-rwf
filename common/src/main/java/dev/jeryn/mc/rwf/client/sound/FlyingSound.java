@@ -2,11 +2,9 @@ package dev.jeryn.mc.rwf.client.sound;
 
 import dev.jeryn.mc.rwf.client.ClientFlightData;
 import dev.jeryn.mc.rwf.client.ClientFlightTracker;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import whocraft.tardis_refined.client.TardisClientData;
@@ -24,14 +22,13 @@ public class FlyingSound extends LoopingTardisInteriorSound {
     @Override
     public void playSoundInstance(Player player) {
 
-
-        Entity entity = player.getFirstPassenger();
+        ClientFlightData flightData = ClientFlightTracker.getForPlayer(player.getUUID()).orElse(null);
 
         if (sound.getLocation().getPath().contains("alarm")) {
             this.setLocation(player.position());
 
-            if (entity instanceof TardisEntity tardis) {
-                TardisClientData tardisClientData = TardisClientData.getInstance(tardis.getTardisDimension());
+            if (flightData != null) {
+                TardisClientData tardisClientData = TardisClientData.getInstance(flightData.tardisDimension());
 
                 int fuel = (int) tardisClientData.getFuel();
 
@@ -41,19 +38,12 @@ public class FlyingSound extends LoopingTardisInteriorSound {
                     setVolume(0);
                 }
 
-                boolean isFreefalling = ClientFlightTracker.get(tardis.getTardisDimension())
-                        .map(ClientFlightData::isFreefalling)
-                        .orElse(false);
-
-                if(isFreefalling){
+                if (flightData.isFreefalling()) {
                     setVolume(0);
                 }
             }
         }
 
-        // Previously this whole block was nested inside the "alarm" check above, so it
-        // could never actually run for the flying-engine sound instance (its path never
-        // contains "alarm") — the speed-reactive engine volume was permanently dead code.
         if (sound.getLocation().getPath().contains("fly")) {
             this.setLocation(player.position());
 
@@ -69,14 +59,8 @@ public class FlyingSound extends LoopingTardisInteriorSound {
 
             setVolume(Mth.clamp(volume, 0.15F, 0.75F));
 
-            if (entity instanceof TardisEntity tardis) {
-                boolean isFreefalling = ClientFlightTracker.get(tardis.getTardisDimension())
-                        .map(ClientFlightData::isFreefalling)
-                        .orElse(false);
-
-                if(isFreefalling){
-                    setVolume(0);
-                }
+            if (flightData != null && flightData.isFreefalling()) {
+                setVolume(0);
             }
         }
     }

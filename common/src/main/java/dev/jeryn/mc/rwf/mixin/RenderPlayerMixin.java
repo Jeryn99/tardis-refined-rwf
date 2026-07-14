@@ -1,7 +1,8 @@
 package dev.jeryn.mc.rwf.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import dev.jeryn.mc.rwf.common.entity.TardisEntity;
+import dev.jeryn.mc.rwf.client.ClientFlightTracker;
+import dev.jeryn.mc.rwf.client.RenderTardis;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
@@ -14,9 +15,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class RenderPlayerMixin {
 
     @Inject(at = @At("HEAD"), cancellable = true, method = "render(Lnet/minecraft/client/player/AbstractClientPlayer;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V")
-    private void stopPlayerRendering(AbstractClientPlayer abstractClientPlayer, float f, float g, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, CallbackInfo ci) {
-        if (abstractClientPlayer.getFirstPassenger() instanceof TardisEntity) {
-
+    private void stopPlayerRendering(AbstractClientPlayer abstractClientPlayer, float yaw, float partialTick, PoseStack poseStack, MultiBufferSource multiBufferSource, int packedLight, CallbackInfo ci) {
+        if (ClientFlightTracker.getForPlayer(abstractClientPlayer.getUUID()).isPresent()) {
+            RenderTardis.renderShellForPlayer(abstractClientPlayer, partialTick, poseStack, multiBufferSource, packedLight);
             ci.cancel();
         }
     }

@@ -15,7 +15,6 @@ import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 
 public class RWFTeleport {
 
-
     private static boolean canTeleportTo(BlockPos pPos, Level level, Entity entity) {
         BlockPathTypes blockpathtypes = WalkNodeEvaluator.getBlockPathTypeStatic(level, pPos.mutable());
         if (blockpathtypes != BlockPathTypes.WALKABLE) {
