@@ -1,5 +1,6 @@
 package dev.jeryn.mc.rwf.fabric;
 
+import dev.jeryn.mc.rwf.common.BetaWarningData;
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
@@ -7,12 +8,23 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 
 public class RWFCommonEvents {
 
     public static void init() {
+
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            try {
+                if (BetaWarningData.markSeenIfFirstJoin(handler.getPlayer())) {
+                    handler.getPlayer().sendSystemMessage(Component.translatable("message.tardis_refined_rwf.beta_warning"));
+                }
+            } catch (Throwable t) {
+                System.out.println("[RWF] JOIN handler failed " + t);
+            }
+        });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             try {

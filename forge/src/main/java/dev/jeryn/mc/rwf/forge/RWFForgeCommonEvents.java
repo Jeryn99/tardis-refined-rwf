@@ -1,7 +1,9 @@
 package dev.jeryn.mc.rwf.forge;
 
 import dev.jeryn.mc.rwf.RealWorldFlight;
+import dev.jeryn.mc.rwf.common.BetaWarningData;
 import dev.jeryn.mc.rwf.common.entity.FlightTracker;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -13,6 +15,19 @@ import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = RealWorldFlight.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class RWFForgeCommonEvents {
+
+    @SubscribeEvent
+    public static void onLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer serverPlayer)) return;
+
+        try {
+            if (BetaWarningData.markSeenIfFirstJoin(serverPlayer)) {
+                serverPlayer.sendSystemMessage(Component.translatable("message.tardis_refined_rwf.beta_warning"));
+            }
+        } catch (Throwable t) {
+            System.out.println("[RWF] onLoggedIn failed " + t);
+        }
+    }
 
     @SubscribeEvent
     public static void onLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
