@@ -44,9 +44,13 @@ public class FlightModeClient {
             options.setCameraType(CameraType.THIRD_PERSON_BACK);
             options.fov().set(90);
 
-            if (flightData.isFreefalling()) {
-                soundManager.stop(TARDIS_SINGLE_FLYING);
-            } else if (!soundManager.isActive(TARDIS_SINGLE_FLYING)) {
+            // Freefall muting is handled by FlyingSound.playSoundInstance() via setVolume(0),
+            // which only runs while the sound stays registered with the SoundManager. Stopping
+            // it here would freeze its volume at 0 and it could never be restarted (vanilla's
+            // SoundEngine.play() silently no-ops when volume == 0), permanently killing the
+            // sound until the game restarts. So just make sure it's playing and let FlyingSound
+            // manage its own volume.
+            if (!soundManager.isActive(TARDIS_SINGLE_FLYING)) {
                 soundManager.play(
                         TARDIS_SINGLE_FLYING
                                 .setPlayer(player)

@@ -48,7 +48,6 @@ public class RenderFlightViewOverlay {
         renderCoordPanel(gui, font);
         renderPilot(gui, font, w, h);
         renderFuel(gui, font, w, h);
-        //renderHeat(gui, font, w, h);
         renderStormWarning(gui, font, w, h);
         renderHeading(gui, font, player, w);
 
@@ -150,21 +149,7 @@ public class RenderFlightViewOverlay {
         }
     }
 
-    /* ---------------- SYSTEMS PANEL (heat) ---------------- */
-
-    static void renderHeat(GuiGraphics gui, Font f, int w, int h) {
-        int barW = 70;
-        int barH = 4;
-        int x = w - 20 - barW;
-        int y = 20;
-
-        float heat = TardisPhysics.heat;
-        int heatRgb = heat > 0.7F ? 0xFF4433 : (heat > 0.35F ? 0xFFAA33 : 0x88FFCC);
-
-        gui.drawString(f, "ENGINE HEAT", x, y, heatRgb);
-        gui.fill(x, y + 10, x + barW, y + 10 + barH, 0x55202020);
-        gui.fill(x, y + 10, x + Math.max(1, (int) (barW * heat)), y + 10 + barH, 0xFF000000 | heatRgb);
-    }
+    /* ---------------- SYSTEMS PANEL ---------------- */
 
     static void renderStormWarning(GuiGraphics gui, Font f, int w, int h) {
         float stormDanger = TardisPhysics.stormDanger;
@@ -173,7 +158,7 @@ public class RenderFlightViewOverlay {
         int barW = 70;
         int barH = 4;
         int x = w - 20 - barW;
-        int y = 34;
+        int y = 20;
 
         boolean blink = (Minecraft.getInstance().player.tickCount / 6) % 2 == 0;
         int stormRgb = (stormDanger > 0.6F && blink) ? 0xFF3333 : 0xFFAA33;

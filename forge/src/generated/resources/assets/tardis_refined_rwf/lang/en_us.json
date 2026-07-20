@@ -4,6 +4,7 @@
   "key.tardis_refined_rwf.free_fall": "Freefall Toggle",
   "key.tardis_refined_rwf.local_hop": "Local Hop",
   "message.tardis_refined_rwf.beta_warning": "§e[Real World Flight]§r This mod is still in beta - things may break or change. Please report bugs and feedback to the mod author.",
+  "message.tardis_refined_rwf.exit_locked_flying": "You can't leave the TARDIS while it's airborne!",
   "message.tardis_refined_rwf.flight_locked": "You need the Flight Control System upgrade before you can fly!",
   "upgrade.tardis_refined_rwf.flight_efficiency_1": "Fuel Efficiency I",
   "upgrade.tardis_refined_rwf.flight_efficiency_1.description": "Slightly improves fuel consumption during flight.",

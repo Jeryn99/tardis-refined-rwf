@@ -9,7 +9,6 @@ import dev.jeryn.mc.rwf.client.model.RWFModelRegistry;
 import dev.jeryn.mc.rwf.client.model.forge.RWFModelRegistryImpl;
 import dev.jeryn.mc.rwf.client.ClientFlightTracker;
 import dev.jeryn.mc.rwf.common.TardisPhysics;
-import dev.jeryn.mc.rwf.common.entity.FlightTracker;
 import dev.jeryn.mc.rwf.network.RWFOpenDoor;
 import dev.jeryn.mc.rwf.network.StopRWFMessage;
 import net.minecraft.client.Minecraft;
@@ -66,7 +65,7 @@ public class RWFForgeClientEvents {
         FlightModeClient.tick();
 
         if (Minecraft.getInstance().player == null) {
-            FlightTracker.IN_FLIGHT.clear();
+            ClientFlightTracker.clear();
         }
 
         // Handle Door Opening

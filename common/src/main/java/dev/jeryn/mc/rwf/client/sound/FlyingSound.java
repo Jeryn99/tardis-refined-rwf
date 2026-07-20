@@ -32,7 +32,9 @@ public class FlyingSound extends LoopingTardisInteriorSound {
 
                 int fuel = (int) tardisClientData.getFuel();
 
-                if (fuel > 0 && fuel < 100) {
+                // Matches the HUD's low-fuel blink threshold (<=20%) so the
+                // audio and visual warnings always kick in together.
+                if (fuel > 0 && fuel < 200) {
                     setVolume(1);
                 } else {
                     setVolume(0);

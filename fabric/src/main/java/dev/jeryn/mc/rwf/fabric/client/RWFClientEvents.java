@@ -6,7 +6,6 @@ import dev.jeryn.mc.rwf.client.ClientUtil;
 import dev.jeryn.mc.rwf.client.FlightModeClient;
 import dev.jeryn.mc.rwf.fabric.client.RWFKeyMappingsFabric;
 import dev.jeryn.mc.rwf.client.ClientFlightTracker;
-import dev.jeryn.mc.rwf.common.entity.FlightTracker;
 import dev.jeryn.mc.rwf.network.RWFOpenDoor;
 import dev.jeryn.mc.rwf.network.StopRWFMessage;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -47,7 +46,7 @@ public class RWFClientEvents {
             FlightModeClient.tick();
 
             if (client.player == null) {
-                FlightTracker.IN_FLIGHT.clear();
+                ClientFlightTracker.clear();
             }
 
             long currentTime = System.currentTimeMillis();

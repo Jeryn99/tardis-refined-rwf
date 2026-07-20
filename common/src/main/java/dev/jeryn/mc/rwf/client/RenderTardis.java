@@ -53,6 +53,8 @@ public class RenderTardis {
     private static final Map<UUID, Integer> TRANSITION_START_TICK = new HashMap<>();
     private static final int TRANSITION_DURATION_TICKS = 20;
 
+    private static final Map<UUID, Integer> LAST_PARTICLE_TICK = new HashMap<>();
+
     private RenderTardis() {
     }
 
@@ -122,6 +124,12 @@ public class RenderTardis {
     }
 
     private static void renderParticles(AbstractClientPlayer player) {
+        // This is called from a per-frame render hook, not a tick hook - cap
+        // it to once per game tick so a high framerate doesn't multiply the
+        // particle count for the same visual.
+        Integer lastTick = LAST_PARTICLE_TICK.put(player.getUUID(), player.tickCount);
+        if (lastTick != null && lastTick == player.tickCount) return;
+
         BlockPos start = player.blockPosition();
         BlockState ground = null;
         double surfaceY = 0;

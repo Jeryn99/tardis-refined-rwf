@@ -12,12 +12,11 @@
     "TardisClientDataMixin"
   ],
   "mixins": [
-    "ControlEntityMixin",
     "FrameMixin",
     "GlobalConsoleRendererMixin",
     "LivingEntityMixin",
     "TardisClientLogicMixin",
-    "TardisPilotingManagerMixin"
+    "TardisLevelOperatorMixin"
   ],
   "injectors": {
     "defaultRequire": 1

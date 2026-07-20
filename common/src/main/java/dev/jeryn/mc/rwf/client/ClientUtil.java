@@ -38,7 +38,10 @@ public class ClientUtil {
         ClipContext ctx = new ClipContext(eye, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player);
         BlockHitResult hit = mc.level.clip(ctx);
 
-        if (hit.getType() != HitResult.Type.BLOCK) return;
+        if (hit.getType() != HitResult.Type.BLOCK) {
+            player.playSound(net.minecraft.sounds.SoundEvents.VILLAGER_NO, 0.6F, 1.0F);
+            return;
+        }
 
         new LocalHopMessage(hit.getBlockPos(), hit.getDirection()).send();
     }

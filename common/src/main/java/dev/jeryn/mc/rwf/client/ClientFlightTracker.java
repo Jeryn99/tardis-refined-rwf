@@ -20,6 +20,10 @@ public class ClientFlightTracker {
         IN_FLIGHT = new HashMap<>(data);
     }
 
+    public static void clear() {
+        IN_FLIGHT = Collections.emptyMap();
+    }
+
     public static boolean isFlying(ResourceKey<Level> key) {
         return IN_FLIGHT.containsKey(key);
     }
@@ -33,9 +37,16 @@ public class ClientFlightTracker {
     }
 
     public static Optional<ClientFlightData> getForPlayer(UUID playerUuid) {
-        return IN_FLIGHT.values().stream()
-                .filter(data -> data.pilot().equals(playerUuid))
-                .findFirst();
+        // Called several times per rendered frame from HUD/render code, so a
+        // plain loop avoids the Stream/Optional pipeline allocations that
+        // .stream().filter().findFirst() would otherwise churn through every
+        // frame for what's normally a tiny map.
+        for (ClientFlightData data : IN_FLIGHT.values()) {
+            if (data.pilot().equals(playerUuid)) {
+                return Optional.of(data);
+            }
+        }
+        return Optional.empty();
     }
 
     public static void applySpectatorPitchTilt(Player player) {

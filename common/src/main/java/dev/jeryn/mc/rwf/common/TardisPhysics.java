@@ -40,7 +40,8 @@ public class TardisPhysics {
     private static final BoxShape UNIT_BOX =
             new BoxShape(new Vector3f(0.5F, 0.5F, 0.5F));
 
-    private static final Map<String, RigidBody> blockColliders = new HashMap<>();
+    private static final Map<Long, RigidBody> blockColliders = new HashMap<>();
+    private static BlockPos lastColliderSyncPos = null;
     public static boolean clientSideFreeFall = false;
     public static float heat = 0.0f;
     public static float turbulence = 0.0f;
@@ -87,6 +88,7 @@ public class TardisPhysics {
         overlappingPairCache = null;
         constraintSolver = null;
         blockColliders.clear();
+        lastColliderSyncPos = null;
         clock.reset();
         physicsTick = 0;
         clientSideFreeFall = false;
@@ -424,12 +426,16 @@ public class TardisPhysics {
         }
     }
 
-    private static float lastWallHitTime = 0f;
+    private static long lastWallHitTimeNanos = 0L;
 
-    private static final float WALL_HIT_COOLDOWN = 0.3f; // seconds, prevents scrape-spam
+    private static final long WALL_HIT_COOLDOWN_NANOS = 300_000_000L; // 0.3s, prevents scrape-spam
 
     private static void onWallCollision(Vector3f normal, float impulse, Player player) {
-        //  if (impulse < 5f) return;
+        if (impulse < 5f) return;
+
+        long now = System.nanoTime();
+        if (now - lastWallHitTimeNanos < WALL_HIT_COOLDOWN_NANOS) return;
+        lastWallHitTimeNanos = now;
 
         float severity = Math.min(1.0f, impulse / 60f);
 
@@ -481,7 +487,7 @@ public class TardisPhysics {
                     vx, vy, vz
             );
         }
-       // if (severity > 0.5f) {
+        if (severity > 0.5f) {
             int smokeCount = (int) (severity * 6);
             for (int i = 0; i < smokeCount; i++) {
                 double ox = normal.x * 0.3 + (Math.random() - 0.5) * 0.4;
@@ -493,10 +499,10 @@ public class TardisPhysics {
                         originX + ox, originY + oy, originZ + oz,
                         normal.x * 0.05, 0.03, normal.z * 0.05
                 );
-         //   }
+            }
         }
 
-     //   if (severity > 0.8f) {
+        if (severity > 0.8f) {
             for (int i = 0; i < 4; i++) {
                 double ox = normal.x * 0.3 + (Math.random() - 0.5) * 0.3;
                 double oy = (Math.random() - 0.5) * 0.4;
@@ -507,12 +513,16 @@ public class TardisPhysics {
                         originX + ox, originY + oy, originZ + oz,
                         0, 0.02, 0
                 );
-        //    }
+            }
         }
     }
 
     private static void syncNearbyBlockColliders(Player player) {
-        Set<String> shouldExist = new HashSet<>();
+        BlockPos playerBlockPos = player.blockPosition();
+        if (playerBlockPos.equals(lastColliderSyncPos)) return;
+        lastColliderSyncPos = playerBlockPos;
+
+        Set<Long> shouldExist = new HashSet<>();
 
         for (int i = -4; i <= 4; i++) {
             for (int j = -4; j <= 4; j++) {
@@ -520,7 +530,7 @@ public class TardisPhysics {
                     int bx = (int) player.getX() + i;
                     int by = (int) player.getY() + j;
                     int bz = (int) player.getZ() + k;
-                    String key = bx + "," + by + "," + bz;
+                    long key = BlockPos.asLong(bx, by, bz);
                     BlockPos pos = new BlockPos(bx, by, bz);
 
                     boolean solid = !player.level().getBlockState(pos).getBlock().equals(Blocks.AIR)
@@ -544,9 +554,9 @@ public class TardisPhysics {
             }
         }
 
-        Iterator<Map.Entry<String, RigidBody>> it = blockColliders.entrySet().iterator();
+        Iterator<Map.Entry<Long, RigidBody>> it = blockColliders.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<String, RigidBody> entry = it.next();
+            Map.Entry<Long, RigidBody> entry = it.next();
             if (!shouldExist.contains(entry.getKey())) {
                 dynamicsWorld.removeRigidBody(entry.getValue());
                 it.remove();

@@ -21,6 +21,7 @@ public class RWFEnglishLang extends LanguageProvider {
         add("upgrade.tardis_refined_rwf.flight_unlock.description", "Unlocks TARDIS flight control systems.");
 
         add("message.tardis_refined_rwf.flight_locked", "You need the Flight Control System upgrade before you can fly!");
+        add("message.tardis_refined_rwf.exit_locked_flying", "You can't leave the TARDIS while it's airborne!");
         add("message.tardis_refined_rwf.beta_warning", "§e[Real World Flight]§r This mod is still in beta - things may break or change. Please report bugs and feedback to the mod author.");
 
         add("upgrade.tardis_refined_rwf.flight_efficiency_1", "Fuel Efficiency I");

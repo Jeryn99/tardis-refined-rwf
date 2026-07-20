@@ -118,9 +118,11 @@ public class FlightTracker {
 
         long now = pilot.level().getGameTime();
         if (now < shell.nextHopAllowedTick) {
+            rejectHop(pilot);
             return;
         }
         if (shell.hopExecuteAtTick > 0) {
+            rejectHop(pilot);
             return;
         }
 
@@ -131,6 +133,12 @@ public class FlightTracker {
 
         double distance = pilot.position().distanceTo(new Vec3(targetX, targetY, targetZ));
         if (distance > MAX_HOP_DISTANCE) {
+            rejectHop(pilot);
+            return;
+        }
+
+        if (!dev.jeryn.mc.rwf.util.RWFTeleport.canTeleportTo(standPos, pilot.level(), pilot)) {
+            rejectHop(pilot);
             return;
         }
 
@@ -144,6 +152,11 @@ public class FlightTracker {
         shell.recoveryTicks = HOP_FADE_TICKS + HOP_TRAVEL_TICKS;
 
         broadcastSync(pilot.server);
+    }
+
+    private static void rejectHop(ServerPlayer pilot) {
+        pilot.playNotifySound(net.minecraft.sounds.SoundEvents.VILLAGER_NO,
+                net.minecraft.sounds.SoundSource.PLAYERS, 0.6F, 1.0F);
     }
 
     private static void tickPendingHop(ServerPlayer pilot, ShellState shell) {
@@ -166,7 +179,16 @@ public class FlightTracker {
         double y = target.getY();
         double z = target.getZ() + 0.5;
 
-        pilot.teleportTo(level, x, y, z, pilot.getYRot(), pilot.getXRot());
+        // Terrain may have changed during the travel delay (blocks placed,
+        // explosions, etc), so re-validate right before actually moving the
+        // pilot instead of trusting the check from when the hop was queued.
+        boolean moved = dev.jeryn.mc.rwf.util.RWFTeleport.performTeleport(
+                pilot, level, x, y, z, pilot.getYRot(), pilot.getXRot());
+
+        if (!moved) {
+            rejectHop(pilot);
+            return;
+        }
 
         level.playSound(null, x, y, z,
                 whocraft.tardis_refined.registry.TRSoundRegistry.TARDIS_LAND.get(),
@@ -229,7 +251,7 @@ public class FlightTracker {
 
         FlightData updated = existing.withFreefalling(isFreefalling);
 
-        if (!isFreefalling && existing.shell().physicsMatrix != null) {
+        if (!isFreefalling) {
             existing.shell().recoveryTicks = 40;
         }
 
@@ -420,7 +442,7 @@ public class FlightTracker {
                 continue;
             }
 
-            flightEffects(pilot);
+            flightEffects(pilot, serverLevel);
             collisionDamage(pilot, serverLevel);
 
             Optional<TardisLevelOperator> tardisOp = TardisLevelOperator.get(tardisLvl);
@@ -504,10 +526,12 @@ public class FlightTracker {
         if (pattern != null && pattern.id() != null) shell.shellPattern = pattern.id();
     }
 
-    private static void flightEffects(Entity pilot) {
+    private static void flightEffects(ServerPlayer pilot, ServerLevel level) {
+        // Level#addParticle is a client-only no-op - server code has to go
+        // through ServerLevel#sendParticles for anything to actually render.
         if (pilot.horizontalCollision) {
-            pilot.level().addParticle(net.minecraft.core.particles.ParticleTypes.LARGE_SMOKE,
-                    pilot.getX(), pilot.getY() + 1, pilot.getZ(), 0.2, 0.5, 0.0);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.LARGE_SMOKE,
+                    pilot.getX(), pilot.getY() + 1, pilot.getZ(), 4, 0.2, 0.2, 0.2, 0.02);
         }
     }
 
@@ -540,9 +564,16 @@ public class FlightTracker {
     private static void collisionTeleport(Entity pilot, TardisLevelOperator op, ShellState shell) {
         if (!shell.doorOpen) return;
 
+        // A full nearby-entity scan every single tick is unnecessary for
+        // something that's really "did anyone walk through the open door" -
+        // every 5 ticks is still responsive and cuts the scan rate 5x.
+        if (pilot.level().getGameTime() % 5 != 0) return;
+
         AABB box = pilot.getBoundingBox();
 
-        for (Entity e : pilot.level().getEntitiesOfClass(Entity.class, box.inflate(5))) {
+        // LivingEntity only - a raw Entity sweep also scoops up item drops,
+        // XP orbs, and arrows sitting near the open door.
+        for (LivingEntity e : pilot.level().getEntitiesOfClass(LivingEntity.class, box.inflate(5))) {
             if (e.is(pilot)) continue;
             teleportToInterior(op, e);
         }
@@ -555,7 +586,6 @@ public class FlightTracker {
         public ResourceLocation shellPattern = new ResourceLocation("tardis_refined", "default");
         public boolean doorOpen = false;
         public int recoveryTicks = 0;
-        public float[] physicsMatrix = null;
         public Vec3 lastPos = Vec3.ZERO;
         public long nextHopAllowedTick = 0L;
         public BlockPos pendingHopTarget = null;
