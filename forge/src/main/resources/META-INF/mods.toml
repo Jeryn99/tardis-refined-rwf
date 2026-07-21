@@ -7,7 +7,7 @@ license = "All Rights Reserved"
 modId = "tardis_refined_rwf"
 version = "${version}"
 displayName = "TARDIS Refined: Real World Flight"
-authors = "Suff99"
+authors = "Suff99, EdraxDoodles"
 description = '''
 An addon for TARDIS Refined that lets you fly your TARDIS exterior around the real world.
 '''
