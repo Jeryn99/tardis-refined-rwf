@@ -56,6 +56,8 @@ public class TardisPhysics {
 
     public static DynamicsWorld dynamicsWorld = null;
     public static RigidBody tardis_rigid_body = null;
+    private static final Quat4f prevRotation = new Quat4f(0, 0, 0, 1);
+    private static final Quat4f currentRotation = new Quat4f(0, 0, 0, 1);
     private static BroadphaseInterface overlappingPairCache = null;
     private static CollisionDispatcher dispatcher = null;
     private static ConstraintSolver constraintSolver = null;
@@ -96,6 +98,8 @@ public class TardisPhysics {
         turbulence = 0f;
         impactFlash = 0f;
         stormDanger = 0f;
+        prevRotation.set(0, 0, 0, 1);
+        currentRotation.set(0, 0, 0, 1);
     }
 
     public static void onClientTick() {
@@ -138,7 +142,7 @@ public class TardisPhysics {
             new SetFreefallMessage(true).send();
         }
 
-         if (!clientSideFreeFall) {
+        if (!clientSideFreeFall) {
             TornadoThreat threat = WeatherHooks.get().getNearestTornadoThreat(
                     mc.level, mc.player.position(), TORNADO_QUERY_RANGE);
 
@@ -208,7 +212,11 @@ public class TardisPhysics {
             ));
 
             dynamicsWorld.addRigidBody(tardis_rigid_body);
+            prevRotation.set(0, 0, 0, 1);
+            currentRotation.set(0, 0, 0, 1);
         }
+
+        prevRotation.set(currentRotation);
 
         BlockPos pos = player.blockPosition();
         var fluid = player.level().getFluidState(pos);
@@ -264,7 +272,7 @@ public class TardisPhysics {
             heat *= 0.98f;
         }
 
-          TornadoThreat tornadoThreat = WeatherHooks.get().getNearestTornadoThreat(
+        TornadoThreat tornadoThreat = WeatherHooks.get().getNearestTornadoThreat(
                 player.level(), player.position(), TORNADO_QUERY_RANGE);
 
         if (tornadoThreat != null) {
@@ -278,7 +286,7 @@ public class TardisPhysics {
                 Vec3 bodyPos = new Vec3(bodyTransform.origin.x, bodyTransform.origin.y, bodyTransform.origin.z);
 
                 Vector3f linVel = tardis_rigid_body.getLinearVelocity(new Vector3f());
-                 Vec3 perTickMotion = new Vec3(linVel.x / 20.0, linVel.y / 20.0, linVel.z / 20.0);
+                Vec3 perTickMotion = new Vec3(linVel.x / 20.0, linVel.y / 20.0, linVel.z / 20.0);
 
                 Vec3 spunMotion = WeatherHooks.get().applyTornadoSpin(
                         player.level(), bodyPos, perTickMotion, true, TORNADO_QUERY_RANGE);
@@ -342,12 +350,17 @@ public class TardisPhysics {
 
         tardis_rigid_body.applyTorque(torque);
 
+        double oldX = player.getX();
+        double oldY = player.getY();
+        double oldZ = player.getZ();
+
         dynamicsWorld.stepSimulation(dt, 5);
 
         checkWallCollisions(player);
 
         Transform wt = new Transform();
         tardis_rigid_body.getWorldTransform(wt);
+        wt.getRotation(currentRotation);
 
         double x = wt.origin.x;
         double y = wt.origin.y;
@@ -356,9 +369,9 @@ public class TardisPhysics {
         player.setPos(x, y, z);
         player.setDeltaMovement(Vec3.ZERO);
 
-        player.xOld = x;
-        player.yOld = y;
-        player.zOld = z;
+        player.xOld = oldX;
+        player.yOld = oldY;
+        player.zOld = oldZ;
 
         tardis_rigid_body.getWorldTransform(wt);
         float[] matrix = new float[16];
@@ -371,6 +384,12 @@ public class TardisPhysics {
             physicsTick = 0;
             syncNearbyBlockColliders(player);  // ← renamed
         }
+    }
+
+      public static Quat4f getInterpolatedRotation(float partialTick) {
+        Quat4f result = new Quat4f();
+        result.interpolate(prevRotation, currentRotation, partialTick);
+        return result;
     }
 
     private static void ensurePhysicsReady() {

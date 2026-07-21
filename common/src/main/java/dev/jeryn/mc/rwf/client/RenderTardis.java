@@ -111,9 +111,10 @@ public class RenderTardis {
         return seat;
     }
 
-    private static float[] getLocalMatrix() {
+    private static float[] getLocalMatrix(float partialTick) {
         Transform t = new Transform();
         TardisPhysics.tardis_rigid_body.getWorldTransform(t);
+        t.setRotation(TardisPhysics.getInterpolatedRotation(partialTick));
         float[] m = new float[16];
         t.getOpenGLMatrix(m);
         return m;
@@ -314,7 +315,7 @@ public class RenderTardis {
         }
 
         float[] activeMatrix = (TardisPhysics.tardis_rigid_body != null)
-                ? getLocalMatrix()
+                ? getLocalMatrix(partialTick)
                 : getPhysicsMatrix(player.getUUID());
 
         if (isFreefalling && activeMatrix != null) {
