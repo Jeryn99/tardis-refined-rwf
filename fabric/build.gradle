@@ -103,7 +103,7 @@ dependencies {
 
     modApi "fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${rootProject.forge_config_api_port_version}"
 
-    modImplementation "com.terraformersmc:modmenu:${rootProject.mod_menu_version}"
+   // modImplementation "com.terraformersmc:modmenu:${rootProject.mod_menu_version}"
 
     modImplementation "dev.onyxstudios.cardinal-components-api:cardinal-components-base:${rootProject.cardinal_version}"
     modImplementation "dev.onyxstudios.cardinal-components-api:cardinal-components-world:${rootProject.cardinal_version}"

@@ -281,6 +281,9 @@ public class FlightTracker {
             try {
                 TardisNavLocation lastKnown = tardisLevelOperator.getPilotingManager().getCurrentLocation();
 
+                tardisLevelOperator.getPilotingManager().addFuel(Integer.MAX_VALUE);
+
+
                 if (lastKnown == null || lastKnown.getLevel() == null) {
                     System.out.println("[RWF] startFlight abort: currentLocation null");
                     return;
