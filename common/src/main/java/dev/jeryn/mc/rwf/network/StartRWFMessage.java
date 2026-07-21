@@ -36,6 +36,20 @@ public class StartRWFMessage extends MessageC2S {
         if(player.level() instanceof ServerLevel serverLevel){
             if(!FlightTracker.isFlying(serverLevel.dimension())) {
 
+                // Reciprocal guard to TardisPilotingManagerMixin: block starting RWF
+                // if someone is already mid-flight on the base mod's own console
+                // throttle for this TARDIS, so the two systems can't both claim the
+                // same shell at once (see multiplayer duplicate-shell bug).
+                boolean consoleFlightActive = TardisLevelOperator.get(serverLevel)
+                        .map(op -> op.getPilotingManager().isInFlight())
+                        .orElse(false);
+
+                if (consoleFlightActive) {
+                    player.displayClientMessage(
+                            Component.translatable("message.tardis_refined_rwf.console_flight_active"), true);
+                    return;
+                }
+
                 boolean unlocked = TardisLevelOperator.get(serverLevel)
                         .map(op -> op.getUpgradeHandler().isUpgradeUnlocked(RWFUpgrades.FLIGHT_UNLOCK.get()))
                         .orElse(false);

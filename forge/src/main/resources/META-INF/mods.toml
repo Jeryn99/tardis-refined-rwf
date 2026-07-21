@@ -1,13 +1,13 @@
 modLoader = "javafml"
 loaderVersion = "[47,)"
-issueTrackerURL = "https://github.com/Suff99/tardis-refined-rwf/issues"
+issueTrackerURL = "https://github.com/Jeryn99/tardis-refined-rwf/issues"
 license = "All Rights Reserved"
 
 [[mods]]
 modId = "tardis_refined_rwf"
 version = "${version}"
 displayName = "TARDIS Refined: Real World Flight"
-authors = "Suff99, EdraxDoodles"
+authors = "Jeryn99, EdraxDoodles"
 description = '''
 An addon for TARDIS Refined that lets you fly your TARDIS exterior around the real world.
 '''

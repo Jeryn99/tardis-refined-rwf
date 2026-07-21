@@ -16,7 +16,8 @@
     "GlobalConsoleRendererMixin",
     "LivingEntityMixin",
     "TardisClientLogicMixin",
-    "TardisLevelOperatorMixin"
+    "TardisLevelOperatorMixin",
+    "TardisPilotingManagerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
