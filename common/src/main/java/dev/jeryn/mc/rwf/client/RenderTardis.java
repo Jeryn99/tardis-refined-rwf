@@ -34,11 +34,7 @@ import whocraft.tardis_refined.patterns.ShellPattern;
 import whocraft.tardis_refined.patterns.ShellPatterns;
 
 import javax.vecmath.Quat4f;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
 import static whocraft.tardis_refined.client.screen.main.MonitorOS.MonitorOSExtension.generateDummyGlobalShell;
@@ -193,7 +189,7 @@ public class RenderTardis {
     }
 
     private static void renderDebugText(AbstractClientPlayer player, ClientFlightData data, boolean isFreefalling,
-                                         float[] activeMatrix, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+                                        float[] activeMatrix, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getEntityRenderDispatcher().shouldRenderHitBoxes()) {
 
@@ -291,7 +287,7 @@ public class RenderTardis {
     }
 
     public static void renderShellForPlayer(AbstractClientPlayer player, float partialTick, PoseStack poseStack,
-                                             MultiBufferSource multiBufferSource, int packedLight) {
+                                            MultiBufferSource multiBufferSource, int packedLight) {
 
         ClientFlightData data = ClientFlightTracker.getForPlayer(player.getUUID()).orElse(null);
         if (data == null) return;
@@ -339,33 +335,14 @@ public class RenderTardis {
             } else {
                 poseStack.translate(0, 0.5, 0);
 
-                float speed = 3.0F;
-                float radius = 0.5F;
+                float angle = age * 4 + 13 * player.swingTime;
 
-                float angle = (player.tickCount + partialTick) * speed * 0.05F;
+                Vec3 motion = new Vec3(player.getDeltaMovement().x, 0, player.getDeltaMovement().z);
 
-                double offsetX = Math.cos(angle) * radius;
-                double offsetZ = Math.sin(angle) * radius;
-
-                float drift = (float) Math.sin(age * 0.03F) * 2F;
-                poseStack.mulPose(Axis.ZP.rotationDegrees(drift));
-
-                poseStack.translate(offsetX, 0.2, offsetZ);
-
-                float yaw2 = (float) (-Math.atan2(offsetX, offsetZ) * (180F / Math.PI));
-                poseStack.mulPose(Axis.YP.rotationDegrees(yaw2));
-
-                float turnRate = Mth.wrapDegrees(player.getYRot() - player.yRotO);
-                float bank = Mth.clamp(turnRate * 1.5F, -25F, 25F);
-
-                Vec3 motion = player.getDeltaMovement();
-                float horizontalSpeed = (float) Math.sqrt(motion.x * motion.x + motion.z * motion.z);
-                float speedLean = Mth.clamp(horizontalSpeed * 40F, 0F, 15F);
-
-                poseStack.mulPose(Axis.ZP.rotationDegrees(bank));
-                poseStack.mulPose(Axis.XP.rotationDegrees(-speedLean));
-
-                poseStack.mulPose(Axis.ZP.rotationDegrees((float) Math.sin(angle) * 6F));
+                poseStack.mulPose(Axis.ZP.rotationDegrees((float) (9 * ((-motion.x * 2) * 1))));
+                poseStack.mulPose(Axis.XP.rotationDegrees((float) (9 * ((motion.z * 2) * 1))));
+                poseStack.mulPose(Axis.YP.rotationDegrees(angle));
+                poseStack.translate(Math.sin(angle * 0.05) * motion.lengthSqr() * 0.05, 0.5, Math.cos(angle * 0.07) * motion.lengthSqr() * 0.05);
             }
         }
 
