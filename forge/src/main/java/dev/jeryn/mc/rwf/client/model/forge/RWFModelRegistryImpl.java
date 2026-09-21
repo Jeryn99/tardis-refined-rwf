@@ -4,8 +4,6 @@ import com.google.gson.JsonObject;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraftforge.client.event.EntityRenderersEvent;
-import whocraft.tardis_refined.TardisRefined;
-import whocraft.tardis_refined.client.model.pallidium.BedrockModelUtil;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -25,7 +23,7 @@ public class RWFModelRegistryImpl {
 
     public static ModelLayerLocation register(ModelLayerLocation location, Supplier<LayerDefinition> definition) {
         DEFINITIONS.put(location, definition);
-        TardisRefined.LOGGER.info("EXPORT: " + location);
+       /* TardisRefined.LOGGER.info("EXPORT: " + location);
         JsonObject model = BedrockModelUtil.toJsonModel((LayerDefinition) definition.get(), location.getModel().getPath());
         Path exportFolder = Paths.get("C:\\Users\\Craig\\Documents\\GitHub\\AssetsRepository", "export_models", location.getLayer());
 
@@ -64,7 +62,8 @@ public class RWFModelRegistryImpl {
         } catch (IOException var11) {
             IOException e = var11;
             throw new RuntimeException("Failed to write model to file", e);
-        }
+        }*/
+        return location;
     }
 
     public static void register(EntityRenderersEvent.RegisterLayerDefinitions event) {

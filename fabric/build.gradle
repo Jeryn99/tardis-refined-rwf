@@ -97,6 +97,13 @@ repositories {
     }
 }
 
+repositories {
+    mavenCentral()
+    maven { url = "https://jitpack.io" }
+    maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" }
+}
+
+
 dependencies {
     modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
     modApi "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
@@ -109,7 +116,7 @@ dependencies {
     modImplementation "dev.onyxstudios.cardinal-components-api:cardinal-components-world:${rootProject.cardinal_version}"
     modImplementation "dev.onyxstudios.cardinal-components-api:cardinal-components-entity:${rootProject.cardinal_version}"
 
-    modImplementation "ignored:tardis_refined:${rootProject.tardis_refined_version}:fabric"
+    modImplementation "maven.modrinth:tardis-refined:fabric-mc1.20.1-v2.1.7"
 
     // Physics
     minieBundle "com.github.stephengold:jbullet:1.0.3"

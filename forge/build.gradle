@@ -86,12 +86,7 @@ configurations {
 
     compileClasspath.extendsFrom common, minieBundle
     runtimeClasspath.extendsFrom common, minieBundle
-    developmentForge.extendsFrom common, minieBundle
-
-    minieBundle.exclude group: "org.slf4j"
-    minieBundle.exclude group: "com.simsilica"
-    shadowCommon.exclude group: "org.slf4j"
-    shadowCommon.exclude group: "com.simsilica"
+    developmentFabric.extendsFrom common, minieBundle
 }
 
 repositories {
@@ -103,8 +98,6 @@ repositories {
 dependencies {
     forge "net.minecraftforge:forge:${rootProject.forge_version}"
 
-    modImplementation "ignored:tardis_refined:${rootProject.tardis_refined_version}:forge"
-
     // weather2 (+ its own required dependency, coroutil) - dev/testing only. This is
     // NOT bundled into the built jar and isn't a hard dependency of the mod itself:
     // Weather2ReflectionBridge talks to it purely via runtime reflection (see that
@@ -113,6 +106,7 @@ dependencies {
     // actually has it present to test the integration against.
     modLocalRuntime "maven.modrinth:weather-storms-tornadoes:1.20.1-2.8.3"
     modLocalRuntime "maven.modrinth:coroutil:1.20.1-1.3.7"
+    modImplementation "maven.modrinth:tardis-refined:neoforge-mc1.20.1-v2.1.7"
 
   //  minieBundle "com.github.stephengold:Minie:9.0.3"
    // minieBundle "com.github.stephengold:Libbulletjme:21.2.1"
@@ -152,6 +146,8 @@ shadowJar {
             project.configurations.minieBundle
     ]
 
+    relocate "com.bulletphysics", "dev.jeryn.mc.rwf.bullet"
+    relocate "javax.vecmath", "dev.jeryn.mc.rwf.vecmath"
     relocate "com.jme3", "mc.craig.software.shadow.jme3"
     relocate "com.simsilica", "mc.craig.software.shadow.simsilica"
     relocate "io.github.electrostat_lab.snaploader", "mc.craig.software.shadow.snaploader"

@@ -6,9 +6,16 @@ loom {
     accessWidenerPath = file("src/main/resources/tardis_refined_rwf.accesswidener")
 }
 
+repositories {
+    mavenCentral()
+    maven { url = "https://jitpack.io" }
+    maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" }
+}
+
+
 dependencies {
     modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
-    modImplementation "ignored:tardis_refined:${rootProject.tardis_refined_version}:fabric"
+    modImplementation "maven.modrinth:tardis-refined:fabric-mc1.20.1-v2.1.7"
 
     /*def bulletVersion = "21.2.1"
 
