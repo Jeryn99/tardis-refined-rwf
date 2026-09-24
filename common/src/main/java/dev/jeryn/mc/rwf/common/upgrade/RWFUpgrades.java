@@ -38,7 +38,7 @@ public class RWFUpgrades {
                         UpgradeType.MAIN_UPGRADE
                 )
                         .setSkillPointsRequired(1)
-                        .setPosition(9.0, 1.0)
+                        .setPosition(10.0, 1.0)
         );
 
         // MPG / efficiency tiers
@@ -50,7 +50,7 @@ public class RWFUpgrades {
                         UpgradeType.SUB_UPGRADE
                 )
                         .setSkillPointsRequired(5)
-                        .setPosition(8.0, 2.0)
+                        .setPosition(10.0, 2.0)
         );
 
         FLIGHT_EFFICIENCY_2 = RWF_UPGRADES.register("flight_efficiency_2", () ->
@@ -61,7 +61,7 @@ public class RWFUpgrades {
                         UpgradeType.SUB_UPGRADE
                 )
                         .setSkillPointsRequired(8)
-                        .setPosition(8.0, 3.0)
+                        .setPosition(10.0, 3.0)
         );
 
         FLIGHT_EFFICIENCY_3 = RWF_UPGRADES.register("flight_efficiency_3", () ->
@@ -72,7 +72,7 @@ public class RWFUpgrades {
                         UpgradeType.SUB_UPGRADE
                 )
                         .setSkillPointsRequired(12)
-                        .setPosition(8.0, 4.0)
+                        .setPosition(10.0, 4.0)
         );
 
         FLIGHT_EFFICIENCY_4 = RWF_UPGRADES.register("flight_efficiency_4", () ->
@@ -83,7 +83,7 @@ public class RWFUpgrades {
                         UpgradeType.SUB_UPGRADE
                 )
                         .setSkillPointsRequired(18)
-                        .setPosition(8.0, 5.0)
+                        .setPosition(10.0, 5.0)
         );
 
         FLIGHT_EFFICIENCY_5 = RWF_UPGRADES.register("flight_efficiency_5", () ->
@@ -94,7 +94,7 @@ public class RWFUpgrades {
                         UpgradeType.SUB_UPGRADE
                 )
                         .setSkillPointsRequired(25)
-                        .setPosition(8.0, 6.0)
+                        .setPosition(10.0, 6.0)
         );
     }
 }
